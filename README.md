@@ -1,4 +1,4 @@
-# Prefix Manager
+# Rubic cube
 
 The 3x3 Rubik's Cube is solved using the LBL (Layer By layer) algorithm 
 using QOpenGLWidget to display a window for moving shapes.
