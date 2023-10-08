@@ -4,25 +4,25 @@
 
 #define SPHERE_DIAMETER         3*4.1f
 
-float     g_fScale = 1.5f;                                                          // skala wyswietlania kostki
+float     g_fScale = 1.5f;                                                      // cube display scale
 
-
+//---------------------------------------------------------------------------
 OGLWidget::OGLWidget(QWidget *parent)
     : QGLWidget(parent)
 {
-    mxRotation[0]=1.0f;                                                           // Kolumna 1 - zresetowanie polozenia kostki w przestrzeni
+    mxRotation[0]=1.0f;                                                         // Column 1 - resetting the cube's position in space
     mxRotation[1]=0.0f;
     mxRotation[2]=0.0f;
     mxRotation[3]=0.0f;
-    mxRotation[4]=0.0f;                                                           // Kolumna 2
+    mxRotation[4]=0.0f;                                                         // Column 2
     mxRotation[5]=1.0f;
     mxRotation[6]=0.0f;
     mxRotation[7]=0.0f;
-    mxRotation[8]=0.0;                                                            // Kolumna 3
+    mxRotation[8]=0.0;                                                          // Column 3
     mxRotation[9]=0.0;
     mxRotation[10]=1.0;
     mxRotation[11]=0.0;
-    mxRotation[12]=0.0;                                                           // Kolumna 4
+    mxRotation[12]=0.0;                                                         // Column 4
     mxRotation[13]=0.0;
     mxRotation[14]=0.0;
     mxRotation[15]=1.0;
@@ -34,37 +34,40 @@ OGLWidget::OGLWidget(QWidget *parent)
     QObject::connect(solvingTimer, SIGNAL(timeout()), this, SLOT(solvingTimerTick()));
 }
 
+//---------------------------------------------------------------------------
 OGLWidget::~OGLWidget()
 {
     delete cube;
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::solvingTimerTick()
 {
-//    if (solvingCnt > 10) {
+//    if (++solvingCnt > 10) {
 //        solvingTimer->stop();
 //        return;
 //    }
 
-    if (cube->Solve()) {
+    if (cube->solve()) {
         solvingTimer->stop();
         return;
     }
-
-    //solvingCnt++;
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::setSolvingInterval(int interval)
 {
     solvingTimer->setInterval(interval);
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::on_pushButtonRandom_clicked()
 {
-    cube->Random();
+    cube->random();
     this->update();
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::on_pushButtonSolve_clicked()
 {
     solvingCnt = 0;
@@ -78,6 +81,7 @@ void OGLWidget::on_pushButtonSolve_clicked()
     }
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::mousePressEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton) {
@@ -90,6 +94,7 @@ void OGLWidget::mousePressEvent(QMouseEvent *e)
     }
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::mouseMoveEvent(QMouseEvent* e)
 {
     if (e->buttons() & Qt::RightButton) {
@@ -100,11 +105,11 @@ void OGLWidget::mouseMoveEvent(QMouseEvent* e)
         qreal acc = diff.length();                                                  // Accelerate angular speed relative to the length of the mouse sweep
         rotationAxis = (rotationAxis * 0 + n * acc).normalized();                   // Calculate new rotation axis as weighted sum
 
-        glPushMatrix();                                                             // gdy juz macierz modelu jest zaladowana
-            glLoadIdentity();                                                       // ustawiamy ja na poczatkowe polozenie
-            glRotatef(acc, rotationAxis.x(), rotationAxis.y(), rotationAxis.z());   // wykonujemy rotacje macierzy o zadany kat wokol obliczonego wczesniej wektora
-            glMultMatrixf((GLfloat*)mxRotation);                                    // nastepnie przemnazamy przez macierz rotacji wczesniej zapisana
-            glGetFloatv(GL_MODELVIEW_MATRIX, mxRotation);                           // i cala operacje zapisujemy na koniec do macierzy rotacji
+        glPushMatrix();                                                             // once the model matrix is ​​loaded
+            glLoadIdentity();                                                       // we set it to the initial position
+            glRotatef(acc, rotationAxis.x(), rotationAxis.y(), rotationAxis.z());   // we rotate the matrix by a given angle around the previously calculated vector
+            glMultMatrixf((GLfloat*)mxRotation);                                    // then we multiply by the rotation matrix previously written
+            glGetFloatv(GL_MODELVIEW_MATRIX, mxRotation);                           // and finally we write the entire operation into the rotation matrix
         glPopMatrix();
 
         this->update();
@@ -112,6 +117,7 @@ void OGLWidget::mouseMoveEvent(QMouseEvent* e)
     }
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::mouseReleaseEvent(QMouseEvent *e)
 {
     this->setCursor(Qt::ArrowCursor);
@@ -122,9 +128,9 @@ void OGLWidget::mouseReleaseEvent(QMouseEvent *e)
         GLdouble mxProjection[16];
 
         if (e->x() != LMBPressPosition.x() || e->y() != LMBPressPosition.y()) {
-            glGetDoublev(GL_PROJECTION_MATRIX, mxProjection);                       // odczytujemy macierz projekcji
-            glGetIntegerv(GL_VIEWPORT, nViewPort);                                  // oraz wymiary okna wyswietlania i wykonujemy rotacje kostki
-            if (cube->Rotate(mxProjection, mxLastModel, nViewPort,
+            glGetDoublev(GL_PROJECTION_MATRIX, mxProjection);                       // we read the projection matrix
+            glGetIntegerv(GL_VIEWPORT, nViewPort);                                  // and the dimensions of the display window and rotate the cube
+            if (cube->rotate(mxProjection, mxLastModel, nViewPort,
                              this->width(), this->height(),
                              e->x(), e->y(),
                              LMBPressPosition.x(), LMBPressPosition.y(),
@@ -135,6 +141,7 @@ void OGLWidget::mouseReleaseEvent(QMouseEvent *e)
     }
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::initializeGL()
 {
     glEnable(GL_LINE_SMOOTH);
@@ -144,6 +151,7 @@ void OGLWidget::initializeGL()
     resizeGL(this->width(),this->height());
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::resizeGL(int w, int h)
 {
     glViewport(0, 0, w, h);
@@ -168,23 +176,25 @@ void OGLWidget::resizeGL(int w, int h)
     glMatrixMode(GL_MODELVIEW);
 }
 
+//---------------------------------------------------------------------------
 void OGLWidget::paintGL()
 {
     glClearColor(0.39f,0.58f,0.93f,1.f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                         // wyczysc okono kolerem i tla i ustaw bufor glebokosci
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                             // clear the window with the color wheel and background and set the depth buffer
 
     glPushMatrix();
-        gluLookAt(0,0,1+SPHERE_DIAMETER/2, 0,0,0, 0,1,0);                       // ustawienie kamery
-        glScalef(g_fScale, g_fScale, g_fScale);                                 // skalowanie kostki
-        glMultMatrixf((GLfloat*)mxRotation);                                    // ustawienie polozenia kostki w przestrzeni
-        //glRotatef(30,1,0,0);                                                    // domyslnie kostka jest ustawiona pod katem 30st. do osi X
-        //glRotatef(45,0,1,0);                                                    // domyslnie kostka jest ustawiona pod katem 45st. do osi Y
-        glRotatef(20,1,0,0);                                                    // domyslnie kostka jest ustawiona pod katem 30st. do osi X
-        glRotatef(-20,0,1,0);                                                    // domyslnie kostka jest ustawiona pod katem 45st. do osi Y
-        glGetDoublev(GL_MODELVIEW_MATRIX, mxLastModel);                         // zapamietanie modelu wyswietlania
-        cube->Draw();                                                           // rysowanie kostki
+        gluLookAt(0,0,1+SPHERE_DIAMETER/2, 0,0,0, 0,1,0);                           // camera setting
+        glScalef(g_fScale, g_fScale, g_fScale);                                     // cube scaling
+        glMultMatrixf((GLfloat*)mxRotation);                                        // setting the position of the cube in space
+        //glRotatef(30,1,0,0);                                                      // By default, the cube is set at an angle of 30 degrees. to the X axis
+        //glRotatef(45,0,1,0);                                                      // By default, the cube is set at an angle of 45 degrees. to the Y axis
+        glRotatef(20,1,0,0);                                                        // By default, the cube is set at an angle of 20 degrees. to the X axis
+        glRotatef(-20,0,1,0);                                                       // By default, the cube is set at an angle of 45 degrees. to the Y axis
+        glGetDoublev(GL_MODELVIEW_MATRIX, mxLastModel);                             // remembering the display model
+        cube->draw();                                                               // drawing a cube
     glPopMatrix();
 
 }
 
+//---------------------------------------------------------------------------
 

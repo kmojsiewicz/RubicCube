@@ -39,8 +39,8 @@ private:
     QVector2D RMBPressPosition;
     QVector3D rotationAxis;
 
-    float     mxRotation[16];                                                         // sumowania macierz rotacji
-    double    mxLastModel[16];                                                        // macierz modelu
+    float     mxRotation[16];                                                         // summed rotation matrix
+    double    mxLastModel[16];                                                        // model matrix
 
     TCube *cube;
 };

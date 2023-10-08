@@ -8,11 +8,11 @@
 #include <algorithm>
 #include <cfloat>
 
-float g_fMinMouseLength = 0.5f;                                                 //minimalna dlugosc wektora przemieszczenia myszy potrzebna do obrocenia sekcji kostki
-float g_fMaxMouseAngle = 135.0f;                                                //jak blisko kostki musi byc wektor przemieszczenia myszy, aby kostke obrocic
-UINT  g_nRotationSteps = 150;                                                    //ilosc klatek animacji przy 90st. rotacji kostki
+float g_fMinMouseLength = 0.5f;                                                 // the minimum length of the mouse displacement vector needed to rotate the cube section
+float g_fMaxMouseAngle = 135.0f;                                                // how close the mouse's displacement vector must be to the cube to rotate the cube
+UINT  g_nRotationSteps = 150;                                                   // number of animation frames at 90 degrees ankle rotation
 
-inline float toDegs(float fRadians)     {return fRadians*360/(2*M_PI);};
+inline float toDegs(float fRadians)     { return fRadians*360/(2*M_PI); };
 
 //---------------------------------------------------------------------------
 QString cubeSideToString(SIDE s)
@@ -34,132 +34,140 @@ QString cubeSideToString(SIDE s)
 //---------------------------------------------------------------------------
 float Vec2DDot(QVector2D& v1, QVector2D& v2)
 {
-return v1.x()*v2.x() + v1.y()*v2.y();
+    return v1.x()*v2.x() + v1.y()*v2.y();
 }
 
 //---------------------------------------------------------------------------
-float Vec2DAngle(QVector2D& v1, QVector2D& v2)                                  //Get angle in degrees between unit vectors v1 and v2
+float Vec2DAngle(QVector2D& v1, QVector2D& v2)                                  // Get angle in degrees between unit vectors v1 and v2
 {
-float d;
-d = Vec2DDot(v1,v2);
-if (d<-1.0f || d>1.0f) return 0.0/0.0;                                          //return NaN
-return toDegs((float)acos(d));
+    float d;
+    d = Vec2DDot(v1,v2);
+    if (d<-1.0f || d>1.0f) return 0.0/0.0;                                      // return NaN
+    return toDegs((float)acos(d));
 }
 
 //---------------------------------------------------------------------------
-//Sprawdzanie po ktorej stronie linii znajduje sie zadany punkt
-//Funkcja zwraca : 1 jesli punkt jest z prawej strony, 0 jesli punkt jest na linii, -1 jesli punkt jest z lewej strony
+// Checking which side of the line a given point is located
+// The function returns: 1 if the point is on the right, 0 if the point is on the line, -1 if the point is on the left
+//---------------------------------------------------------------------------
 int lineTest(const PT2D& ptLineStart, const PT2D& ptLineEnd, const int ptX, const int ptY)
 {
-double dx = ptLineEnd.x - ptLineStart.x;
-double dy = ptLineEnd.y - ptLineStart.y;
-if (fabs(dx)>fabs(dy)) {
-    double yOnline = dy/dx * (ptX - ptLineStart.x) + ptLineStart.y;
-    return ptY >  yOnline ? 1 : (ptY < yOnline ? -1 : 0);
+    double dx = ptLineEnd.x - ptLineStart.x;
+    double dy = ptLineEnd.y - ptLineStart.y;
+    if (fabs(dx)>fabs(dy)) {
+        double yOnline = dy/dx * (ptX - ptLineStart.x) + ptLineStart.y;
+        return ptY >  yOnline ? 1 : (ptY < yOnline ? -1 : 0);
     }
-else {
-    double xOnline = dx/dy * (ptY - ptLineStart.y) + ptLineStart.x;
-    return ptX >  xOnline ? 1 : (ptX < xOnline ? -1 : 0);
+    else {
+        double xOnline = dx/dy * (ptY - ptLineStart.y) + ptLineStart.x;
+        return ptX >  xOnline ? 1 : (ptX < xOnline ? -1 : 0);
     }
 }
 
 //---------------------------------------------------------------------------
-//Funkcja sprawdza czy zadany punkt miesci sie w zdanym czworokacie
+// The function checks whether the given point fits into the given quadrilateral
+//---------------------------------------------------------------------------
 bool poly4InsideTest(const PT2D* ptCorners, const int ptX, const int ptY)
 {
-int nResult1, nResult2;
-nResult1 = lineTest(ptCorners[0], ptCorners[1], ptX, ptY);
-nResult2 = lineTest(ptCorners[2], ptCorners[3], ptX, ptY);
-if (((nResult1 > 0) && (nResult2 > 0)) || ((nResult1 < 0) && (nResult2 < 0))) return FALSE;
-nResult1 = lineTest(ptCorners[0], ptCorners[3], ptX, ptY);
-nResult2 = lineTest(ptCorners[1], ptCorners[2], ptX, ptY);
-if (((nResult1 > 0) && (nResult2 > 0)) || ((nResult1 < 0) && (nResult2 < 0))) return FALSE;
-return TRUE;
+    int nResult1, nResult2;
+    nResult1 = lineTest(ptCorners[0], ptCorners[1], ptX, ptY);
+    nResult2 = lineTest(ptCorners[2], ptCorners[3], ptX, ptY);
+    if (((nResult1 > 0) && (nResult2 > 0)) || ((nResult1 < 0) && (nResult2 < 0))) return FALSE;
+    nResult1 = lineTest(ptCorners[0], ptCorners[3], ptX, ptY);
+    nResult2 = lineTest(ptCorners[1], ptCorners[2], ptX, ptY);
+    if (((nResult1 > 0) && (nResult2 > 0)) || ((nResult1 < 0) && (nResult2 < 0))) return FALSE;
+    return TRUE;
 }
 
 //---------------------------------------------------------------------------
-//Funkcja sprawdza czy zadany punkt miesci sie w zdanym czwrokacie (przy tym ignorowania jest wspolrzedna z)
+// The function checks whether the given point is located in the given quadrilateral (in this case, the z coordinate is ignored)
+//---------------------------------------------------------------------------
 BOOL poly4InsideTest(PT3D* pt3Corners, const int ptX, const int ptY)
 {
-PT2D pt2Corners[4];
-for (int i=0; i<4; i++) pt2Corners[i] = pt3Corners[i];
-return poly4InsideTest(pt2Corners, ptX, ptY);
+    PT2D pt2Corners[4];
+    for (int i=0; i<4; i++) pt2Corners[i] = pt3Corners[i];
+    return poly4InsideTest(pt2Corners, ptX, ptY);
 }
 
 //---------------------------------------------------------------------------
-//Funkcja sprawdza w ktorej sekcji kostki na osi X  miesci sie zadany punkt
+// The function checks in which section of the cube on the X axis the given point is located
+//---------------------------------------------------------------------------
 UINT8 getXsection(PT2D* ptCorners, const int ptX, const int ptY)
 {
-int i, rc[cube_size];
-double dx, dy;
-PT2D ptLineStart, ptLineEnd;
-dx = (ptCorners[1].x - ptCorners[0].x)/cube_size;                               //podziel zadany odcinek na ilosc sekcji
-dy = (ptCorners[1].y - ptCorners[0].y)/cube_size;
-//Now that we know point isn't in the center strip, test a line down the center
-ptLineStart.x = ptCorners[0].x;                                                 //obliczamy pierwszy odcinek
-ptLineStart.y = ptCorners[0].y;
-ptLineEnd.x   = ptCorners[3].x;
-ptLineEnd.y   = ptCorners[3].y;
-for (i=0; i<cube_size; i++) {
-    rc[i] = lineTest(ptLineStart, ptLineEnd, ptX, ptY);                         //wykonaj test polozenia punktu dla wszystkich otrzymanych odcinkow
-    ptLineStart.x += dx;                                                        //obliczamy nastepny odcinek
-    ptLineStart.y += dy;
-    ptLineEnd.x   += dx;
-    ptLineEnd.y   += dy;
+    int i, rc[cube_size];
+    double dx, dy;
+    PT2D ptLineStart, ptLineEnd;
+    dx = (ptCorners[1].x - ptCorners[0].x)/cube_size;                           // divide the given segment into the number of sections
+    dy = (ptCorners[1].y - ptCorners[0].y)/cube_size;
+    //Now that we know point isn't in the center strip, test a line down the center
+    ptLineStart.x = ptCorners[0].x;                                             // we calculate the first section
+    ptLineStart.y = ptCorners[0].y;
+    ptLineEnd.x   = ptCorners[3].x;
+    ptLineEnd.y   = ptCorners[3].y;
+    for (i=0; i<cube_size; i++) {
+        rc[i] = lineTest(ptLineStart, ptLineEnd, ptX, ptY);                     // perform a point position test for all received segments
+        ptLineStart.x += dx;                                                    // we calculate the next section
+        ptLineStart.y += dy;
+        ptLineEnd.x   += dx;
+        ptLineEnd.y   += dy;
     }
-for (i=0; i<cube_size; i++) if (rc[i]==0) return i;                             //sprawdzamy czy punkt lezal na ktoryms z odcinkow
-for (i=0; i<cube_size-1; i++) if (rc[i]!=rc[i+1]) return i;                     //sprawdzamy czy punkt lezy pomiedzy jakimis odcinkami poprzez sprawdzanie znakow
-return cube_size-1;
+    for (i=0; i<cube_size; i++) if (rc[i]==0) return i;                         // we check whether the point was located on one of the segments
+    for (i=0; i<cube_size-1; i++) if (rc[i]!=rc[i+1]) return i;                 // we check whether the point lies between some segments by checking the signs
+    return cube_size-1;
 }
 
 //---------------------------------------------------------------------------
-//Funkcja sprawdza w ktorej sekcji kostki na osi X  miesci sie zadany punkt
-//W tym przypadku nastepuje zmiana wspolrzednych 3-wymiarowych na wspolrzedne 2-wymiarowe (ignorowane sa wspolrzedne z)
+// The function checks in which section of the cube on the X axis the given point is located
+// In this case, the 3-dimensional coordinates are changed to 2-dimensional coordinates (z coordinates are ignored)
+//---------------------------------------------------------------------------
 UINT8 getXsection(PT3D* pt3Corners, const int ptX, const int ptY)
 {
-PT2D pt2Corners[4];
-for (int i=0; i<4; i++) pt2Corners[i] = pt3Corners[i];
-return getXsection(pt2Corners, ptX, ptY);
+    PT2D pt2Corners[4];
+    for (int i=0; i<4; i++) pt2Corners[i] = pt3Corners[i];
+    return getXsection(pt2Corners, ptX, ptY);
 }
 
 //---------------------------------------------------------------------------
-//Funkcja sprawdza w ktorej sekcji kostki na osi Y  miesci sie zadany punkt
+// The function checks in which section of the cube on the Y axis the given point is located
+//---------------------------------------------------------------------------
 UINT8 getYsection(PT2D* ptCorners, const int ptX, const int ptY)
 {
-int i, rc[cube_size];
-double dx, dy;
-PT2D ptLineStart, ptLineEnd;
-dx = (ptCorners[2].x - ptCorners[1].x)/cube_size;                               //podziel zadany odcinek na ilosc sekcji
-dy = (ptCorners[2].y - ptCorners[1].y)/cube_size;
-ptLineStart.x = ptCorners[0].x;                                                 //obliczamy pierwszy odcinek
-ptLineStart.y = ptCorners[0].y;
-ptLineEnd.x   = ptCorners[1].x;
-ptLineEnd.y   = ptCorners[1].y;
-for (i=0; i<cube_size; i++) {
-    rc[i] = lineTest(ptLineStart, ptLineEnd, ptX, ptY);                         //wykonaj test polozenia punktu dla wszystkich otrzymanych odcinkow
-    ptLineStart.x += dx;                                                        //obliczamy nastepny odcinek
-    ptLineStart.y += dy;
-    ptLineEnd.x   += dx;
-    ptLineEnd.y   += dy;
+    int i, rc[cube_size];
+    double dx, dy;
+    PT2D ptLineStart, ptLineEnd;
+    dx = (ptCorners[2].x - ptCorners[1].x)/cube_size;                           // divide the given segment into the number of sections
+    dy = (ptCorners[2].y - ptCorners[1].y)/cube_size;
+    ptLineStart.x = ptCorners[0].x;                                             // we calculate the first section
+    ptLineStart.y = ptCorners[0].y;
+    ptLineEnd.x   = ptCorners[1].x;
+    ptLineEnd.y   = ptCorners[1].y;
+    for (i=0; i<cube_size; i++) {
+        rc[i] = lineTest(ptLineStart, ptLineEnd, ptX, ptY);                     // perform a point position test for all received segments
+        ptLineStart.x += dx;                                                    // we calculate the next section
+        ptLineStart.y += dy;
+        ptLineEnd.x   += dx;
+        ptLineEnd.y   += dy;
     }
-for (i=0; i<cube_size; i++) if (rc[i]==0) return i;                             //sprawdzamy czy punkt lezal na ktoryms z odcinkow
-for (i=0; i<cube_size-1; i++) if (rc[i]!=rc[i+1]) return i;                     //sprawdzamy czy punkt lezy pomiedzy jakimis odcinkami poprzez sprawdzanie znakow
-return cube_size-1;
+    for (i=0; i<cube_size; i++) if (rc[i]==0) return i;                         // we check whether the point was located on one of the segments
+    for (i=0; i<cube_size-1; i++) if (rc[i]!=rc[i+1]) return i;                 // we check whether the point lies between some segments by checking the signs
+    return cube_size-1;
 }
 //---------------------------------------------------------------------------
-//Funkcja sprawdza w ktorej sekcji kostki na osi Y miesci sie zadany punkt
-//W tym przypadku nastepuje zmiana wspolrzednych 3-wymiarowych na wspolrzedne 2-wymiarowe (ignorowane sa wspolrzedne z)
+// The function checks in which section of the cube on the Y axis the given point is located
+// In this case, the 3-dimensional coordinates are changed to 2-dimensional coordinates (z coordinates are ignored)
+//---------------------------------------------------------------------------
 UINT8 getYsection(PT3D* pt3Corners, const int ptX, const int ptY)
 {
-PT2D pt2Corners[4];
-for (int i=0; i<4; i++) pt2Corners[i] = pt3Corners[i];
-return getYsection(pt2Corners, ptX, ptY);
+    PT2D pt2Corners[4];
+    for (int i=0; i<4; i++) pt2Corners[i] = pt3Corners[i];
+    return getYsection(pt2Corners, ptX, ptY);
 }
 
 //---------------------------------------------------------------------------
-//Tworzenie najmniejszego kawalka kostki
-//Sprawdzane sa strony takiego kawalka i odpowiednio zaznaczane kolorem
-//Kawalki lezace wewnatrz kostki beda oznaczone kolorem czarnym
+// Creating the smallest piece of cube
+// The sides of such a piece are checked and marked with color accordingly
+// The pieces inside the cube will be marked in black
+//---------------------------------------------------------------------------
 TCubePiece::TCubePiece(BYTEVEC posHome)
 {
     m_fRotationAngle = 0;
@@ -174,92 +182,94 @@ TCubePiece::TCubePiece(BYTEVEC posHome)
 }
 
 //---------------------------------------------------------------------------
-void TCubePiece::RotateX(bool bCW)                                              //rotacja kawalka kostki na osi X
+void TCubePiece::rotateX(bool bCW)                                              // rotation of a piece of cube on the X axis
 {
-SIDECOLOR nTmp;
-if (bCW) {                                                                      //czy rotacja wzgledem wskazowek zegara
-    nTmp                    = m_nSideColor[SD_TOP];
-    m_nSideColor[SD_TOP]    = m_nSideColor[SD_BACK];
-    m_nSideColor[SD_BACK]   = m_nSideColor[SD_BOTTOM];
-    m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_FRONT];
-    m_nSideColor[SD_FRONT]  = nTmp;
+    SIDECOLOR nTmp;
+    if (bCW) {                                                                  // or clockwise rotation
+        nTmp                    = m_nSideColor[SD_TOP];
+        m_nSideColor[SD_TOP]    = m_nSideColor[SD_BACK];
+        m_nSideColor[SD_BACK]   = m_nSideColor[SD_BOTTOM];
+        m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_FRONT];
+        m_nSideColor[SD_FRONT]  = nTmp;
     }
-else {
-    nTmp                    = m_nSideColor[SD_TOP];
-    m_nSideColor[SD_TOP]    = m_nSideColor[SD_FRONT];
-    m_nSideColor[SD_FRONT]  = m_nSideColor[SD_BOTTOM];
-    m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_BACK];
-    m_nSideColor[SD_BACK]   = nTmp;
+    else {
+        nTmp                    = m_nSideColor[SD_TOP];
+        m_nSideColor[SD_TOP]    = m_nSideColor[SD_FRONT];
+        m_nSideColor[SD_FRONT]  = m_nSideColor[SD_BOTTOM];
+        m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_BACK];
+        m_nSideColor[SD_BACK]   = nTmp;
     }
 }
 
 //---------------------------------------------------------------------------
-void TCubePiece::RotateY(bool bCW)                                              //rotacja kawalka kostki na osi Y
+void TCubePiece::rotateY(bool bCW)                                              // rotation of a piece of cube on the Y axis
 {
-SIDECOLOR nTmp;
-if (bCW) {                                                                      //czy rotacja wzgledem wskazowek zegara
-    nTmp                    = m_nSideColor[SD_FRONT];
-    m_nSideColor[SD_FRONT]  = m_nSideColor[SD_LEFT];
-    m_nSideColor[SD_LEFT]   = m_nSideColor[SD_BACK];
-    m_nSideColor[SD_BACK]   = m_nSideColor[SD_RIGHT];
-    m_nSideColor[SD_RIGHT]  = nTmp;
+    SIDECOLOR nTmp;
+    if (bCW) {                                                                  // or clockwise rotation
+        nTmp                    = m_nSideColor[SD_FRONT];
+        m_nSideColor[SD_FRONT]  = m_nSideColor[SD_LEFT];
+        m_nSideColor[SD_LEFT]   = m_nSideColor[SD_BACK];
+        m_nSideColor[SD_BACK]   = m_nSideColor[SD_RIGHT];
+        m_nSideColor[SD_RIGHT]  = nTmp;
     }
-else {
-    nTmp                    = m_nSideColor[SD_FRONT];
-    m_nSideColor[SD_FRONT]  = m_nSideColor[SD_RIGHT];
-    m_nSideColor[SD_RIGHT]  = m_nSideColor[SD_BACK];
-    m_nSideColor[SD_BACK]   = m_nSideColor[SD_LEFT];
-    m_nSideColor[SD_LEFT]   = nTmp;
+    else {
+        nTmp                    = m_nSideColor[SD_FRONT];
+        m_nSideColor[SD_FRONT]  = m_nSideColor[SD_RIGHT];
+        m_nSideColor[SD_RIGHT]  = m_nSideColor[SD_BACK];
+        m_nSideColor[SD_BACK]   = m_nSideColor[SD_LEFT];
+        m_nSideColor[SD_LEFT]   = nTmp;
     }
 }
 
 //---------------------------------------------------------------------------
-void TCubePiece::RotateZ(bool bCW)                                              //rotacja kawalka kostki na osi Z
+void TCubePiece::rotateZ(bool bCW)                                              // rotation of a piece of cube on the Z axis
 {
-SIDECOLOR nTmp;
-if (bCW) {                                                                      //czy rotacja wzgledem wskazowek zegara
-    nTmp                    = m_nSideColor[SD_TOP];
-    m_nSideColor[SD_TOP]    = m_nSideColor[SD_RIGHT];
-    m_nSideColor[SD_RIGHT]  = m_nSideColor[SD_BOTTOM];
-    m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_LEFT];
-    m_nSideColor[SD_LEFT]   = nTmp;
+    SIDECOLOR nTmp;
+    if (bCW) {                                                                  // or clockwise rotation
+        nTmp                    = m_nSideColor[SD_TOP];
+        m_nSideColor[SD_TOP]    = m_nSideColor[SD_RIGHT];
+        m_nSideColor[SD_RIGHT]  = m_nSideColor[SD_BOTTOM];
+        m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_LEFT];
+        m_nSideColor[SD_LEFT]   = nTmp;
     }
-else {
-    nTmp                    = m_nSideColor[SD_TOP];
-    m_nSideColor[SD_TOP]    = m_nSideColor[SD_LEFT];
-    m_nSideColor[SD_LEFT]   = m_nSideColor[SD_BOTTOM];
-    m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_RIGHT];
-    m_nSideColor[SD_RIGHT]  = nTmp;
+    else {
+        nTmp                    = m_nSideColor[SD_TOP];
+        m_nSideColor[SD_TOP]    = m_nSideColor[SD_LEFT];
+        m_nSideColor[SD_LEFT]   = m_nSideColor[SD_BOTTOM];
+        m_nSideColor[SD_BOTTOM] = m_nSideColor[SD_RIGHT];
+        m_nSideColor[SD_RIGHT]  = nTmp;
     }
 }
 
 //---------------------------------------------------------------------------
-void TCubePiece::Draw(float x,float y,float z)                                  // rysowanie kawalka kostki
+void TCubePiece::draw(float x,float y,float z)                                  // drawing a piece of cube
 {
-    glPushMatrix();                                                             // najpierw wykonujemy obrot takiego kawalka kostki (potrzebne dla animacji)
-    if (m_fRotationAngle) glRotatef(m_fRotationAngle, m_vRotation.x(), m_vRotation.y(), m_vRotation.z());
-    glTranslatef(x,y,z);                                                        // a nastepnie zaczynamy rysowac w odpowiednim miejscu
+    glPushMatrix();                                                             // first we rotate such a piece of cube (needed for animation)
+    if (m_fRotationAngle) {
+        glRotatef(m_fRotationAngle, m_vRotation.x(), m_vRotation.y(), m_vRotation.z());
+    }
+    glTranslatef(x,y,z);                                                        // and then we start drawing in the right place
     glBegin(GL_QUADS);
         glColor3ub(MAKECOLOR(m_nSideColor[SD_RIGHT]));
-        glVertex3f( 0.5f, 0.5f,-0.5f);					                        //Top Right Of The Quad (Right)
-        glVertex3f( 0.5f, 0.5f, 0.5f);					                        //Top Left Of The Quad (Right)
-        glVertex3f( 0.5f,-0.5f, 0.5f);					                        //Bottom Left Of The Quad (Right)
-        glVertex3f( 0.5f,-0.5f,-0.5f);					                        //Bottom Right Of The Quad (Right)
+        glVertex3f( 0.5f, 0.5f,-0.5f);					                        // Top Right Of The Quad (Right)
+        glVertex3f( 0.5f, 0.5f, 0.5f);					                        // Top Left Of The Quad (Right)
+        glVertex3f( 0.5f,-0.5f, 0.5f);					                        // Bottom Left Of The Quad (Right)
+        glVertex3f( 0.5f,-0.5f,-0.5f);					                        // Bottom Right Of The Quad (Right)
         glColor3ub(MAKECOLOR(m_nSideColor[SD_BOTTOM]));
-        glVertex3f( 0.5f,-0.5f, 0.5f);					                        //Top Right Of The Quad (Bottom)
-        glVertex3f(-0.5f,-0.5f, 0.5f);					                        //Top Left Of The Quad (Bottom)
-        glVertex3f(-0.5f,-0.5f,-0.5f);					                        //Bottom Left Of The Quad (Bottom)
-        glVertex3f( 0.5f,-0.5f,-0.5f);					                        //Bottom Right Of The Quad (Bottom)
+        glVertex3f( 0.5f,-0.5f, 0.5f);					                        // Top Right Of The Quad (Bottom)
+        glVertex3f(-0.5f,-0.5f, 0.5f);					                        // Top Left Of The Quad (Bottom)
+        glVertex3f(-0.5f,-0.5f,-0.5f);					                        // Bottom Left Of The Quad (Bottom)
+        glVertex3f( 0.5f,-0.5f,-0.5f);					                        // Bottom Right Of The Quad (Bottom)
         glColor3ub(MAKECOLOR(m_nSideColor[SD_FRONT]));
-        glVertex3f( 0.5f, 0.5f, 0.5f);					                        //Top Right Of The Quad (Front)
-        glVertex3f(-0.5f, 0.5f, 0.5f);					                        //Top Left Of The Quad (Front)
-        glVertex3f(-0.5f,-0.5f, 0.5f);					                        //Bottom Left Of The Quad (Front)
-        glVertex3f( 0.5f,-0.5f, 0.5f);					                        //Bottom Right Of The Quad (Front)
+        glVertex3f( 0.5f, 0.5f, 0.5f);					                        // Top Right Of The Quad (Front)
+        glVertex3f(-0.5f, 0.5f, 0.5f);					                        // Top Left Of The Quad (Front)
+        glVertex3f(-0.5f,-0.5f, 0.5f);					                        // Bottom Left Of The Quad (Front)
+        glVertex3f( 0.5f,-0.5f, 0.5f);					                        // Bottom Right Of The Quad (Front)
         glColor3ub(MAKECOLOR(m_nSideColor[SD_TOP]));
-        glVertex3f( 0.5f, 0.5f,-0.5f);					                        //Top Right Of The Quad (Top)
-        glVertex3f(-0.5f, 0.5f,-0.5f);					                        //Top Left Of The Quad (Top)
-        glVertex3f(-0.5f, 0.5f, 0.5f);					                        //Bottom Left Of The Quad (Top)
-        glVertex3f( 0.5f, 0.5f, 0.5f);					                        //Bottom Right Of The Quad (Top)
+        glVertex3f( 0.5f, 0.5f,-0.5f);					                        // Top Right Of The Quad (Top)
+        glVertex3f(-0.5f, 0.5f,-0.5f);					                        // Top Left Of The Quad (Top)
+        glVertex3f(-0.5f, 0.5f, 0.5f);					                        // Bottom Left Of The Quad (Top)
+        glVertex3f( 0.5f, 0.5f, 0.5f);					                        // Bottom Right Of The Quad (Top)
         glColor3ub(MAKECOLOR(m_nSideColor[SD_LEFT]));
         glVertex3f(-0.5f, 0.5f, 0.5f);					                        // Top Right Of The Quad (Left)
         glVertex3f(-0.5f, 0.5f,-0.5f);					                        // Top Left Of The Quad (Left)
@@ -272,52 +282,52 @@ void TCubePiece::Draw(float x,float y,float z)                                  
         glVertex3f( 0.5f, 0.5f,-0.5f);					                        // Bottom Right Of The Quad (Back)
     glEnd();
     glColor3ub(MAKECOLOR(BLACK));
-    if (m_nSideColor[SD_RIGHT]!=BLACK) {                                            //sprawdzamy czy kolor prawej strony kawalka kostki nie jest czarny
-        glBegin(GL_LINE_LOOP);                                                      //jesli nie jest ro rysujemy obramowanie kwadratu
-        glVertex3f( 0.5f, 0.5f,-0.5f);					                            //Top Right Of The Quad (Right)
-        glVertex3f( 0.5f, 0.5f, 0.5f);					                            //Top Left Of The Quad (Right)
-        glVertex3f( 0.5f,-0.5f, 0.5f);					                            //Bottom Left Of The Quad (Right)
-        glVertex3f( 0.5f,-0.5f,-0.5f);					                            //Bottom Right Of The Quad (Right)
+    if (m_nSideColor[SD_RIGHT]!=BLACK) {                                        // we check whether the color of the right side of the cube is not black
+        glBegin(GL_LINE_LOOP);                                                  // if it is not ro, draw a square border
+        glVertex3f( 0.5f, 0.5f,-0.5f);					                        // Top Right Of The Quad (Right)
+        glVertex3f( 0.5f, 0.5f, 0.5f);					                        // Top Left Of The Quad (Right)
+        glVertex3f( 0.5f,-0.5f, 0.5f);					                        // Bottom Left Of The Quad (Right)
+        glVertex3f( 0.5f,-0.5f,-0.5f);					                        // Bottom Right Of The Quad (Right)
         glEnd();
     }
-    if (m_nSideColor[SD_BOTTOM]!=BLACK) {                                           //sprawdzamy czy kolor spodniej strony kawalka kostki nie jest czarny
-        glBegin(GL_LINE_LOOP);                                                      //jesli nie jest ro rysujemy obramowanie kwadratu
-        glVertex3f( 0.5f,-0.5f, 0.5f);					                            //Top Right Of The Quad (Bottom)
-        glVertex3f(-0.5f,-0.5f, 0.5f);					                            //Top Left Of The Quad (Bottom)
-        glVertex3f(-0.5f,-0.5f,-0.5f);					                            //Bottom Left Of The Quad (Bottom)
-        glVertex3f( 0.5f,-0.5f,-0.5f);					                            //Bottom Right Of The Quad (Bottom)
+    if (m_nSideColor[SD_BOTTOM]!=BLACK) {                                       // we check whether the color of the underside of the piece of cube is not black
+        glBegin(GL_LINE_LOOP);                                                  // if it is not ro, draw a square border
+        glVertex3f( 0.5f,-0.5f, 0.5f);					                        // Top Right Of The Quad (Bottom)
+        glVertex3f(-0.5f,-0.5f, 0.5f);					                        // Top Left Of The Quad (Bottom)
+        glVertex3f(-0.5f,-0.5f,-0.5f);					                        // Bottom Left Of The Quad (Bottom)
+        glVertex3f( 0.5f,-0.5f,-0.5f);					                        // Bottom Right Of The Quad (Bottom)
         glEnd();
     }
-    if (m_nSideColor[SD_FRONT]!=BLACK) {                                            //sprawdzamy czy kolor przedniej strony kawalka kostki nie jest czarny
-        glBegin(GL_LINE_LOOP);                                                      //jesli nie jest ro rysujemy obramowanie kwadratu
-        glVertex3f( 0.5f, 0.5f, 0.5f);					                            //Top Right Of The Quad (Front)
-        glVertex3f(-0.5f, 0.5f, 0.5f);					                            //Top Left Of The Quad (Front)
-        glVertex3f(-0.5f,-0.5f, 0.5f);					                            //Bottom Left Of The Quad (Front)
-        glVertex3f( 0.5f,-0.5f, 0.5f);					                            //Bottom Right Of The Quad (Front)
+    if (m_nSideColor[SD_FRONT]!=BLACK) {                                        // we check whether the color of the front side of the cube piece is not black
+        glBegin(GL_LINE_LOOP);                                                  // if it is not ro, draw a square border
+        glVertex3f( 0.5f, 0.5f, 0.5f);					                        // Top Right Of The Quad (Front)
+        glVertex3f(-0.5f, 0.5f, 0.5f);					                        // Top Left Of The Quad (Front)
+        glVertex3f(-0.5f,-0.5f, 0.5f);					                        // Bottom Left Of The Quad (Front)
+        glVertex3f( 0.5f,-0.5f, 0.5f);					                        // Bottom Right Of The Quad (Front)
         glEnd();
     }
-    if (m_nSideColor[SD_TOP]!=BLACK) {                                              //sprawdzamy czy kolor gornej strony kawalka kostki nie jest czarny
-        glBegin(GL_LINE_LOOP);                                                      //jesli nie jest ro rysujemy obramowanie kwadratu
-        glVertex3f( 0.5f, 0.5f,-0.5f);					                            //Top Right Of The Quad (Top)
-        glVertex3f(-0.5f, 0.5f,-0.5f);					                            //Top Left Of The Quad (Top)
-        glVertex3f(-0.5f, 0.5f, 0.5f);					                            //Bottom Left Of The Quad (Top)
-        glVertex3f( 0.5f, 0.5f, 0.5f);					                            //Bottom Right Of The Quad (Top)
+    if (m_nSideColor[SD_TOP]!=BLACK) {                                          // we check whether the color of the upper side of the cube piece is not black
+        glBegin(GL_LINE_LOOP);                                                  // if it is not ro, draw a square border
+        glVertex3f( 0.5f, 0.5f,-0.5f);					                        // Top Right Of The Quad (Top)
+        glVertex3f(-0.5f, 0.5f,-0.5f);					                        // Top Left Of The Quad (Top)
+        glVertex3f(-0.5f, 0.5f, 0.5f);					                        // Bottom Left Of The Quad (Top)
+        glVertex3f( 0.5f, 0.5f, 0.5f);					                        // Bottom Right Of The Quad (Top)
         glEnd();
     }
-    if (m_nSideColor[SD_LEFT]!=BLACK) {
-        glBegin(GL_LINE_LOOP);                                                      //sprawdzamy czy kolor lewej strony kawalka kostki nie jest czarny//jesli nie jest ro rysujemy obramowanie kwadratu
-        glVertex3f(-0.5f, 0.5f, 0.5f);					                            //Top Right Of The Quad (Left)
-        glVertex3f(-0.5f, 0.5f,-0.5f);					                            //Top Left Of The Quad (Left)
-        glVertex3f(-0.5f,-0.5f,-0.5f);					                            //Bottom Left Of The Quad (Left)
-        glVertex3f(-0.5f,-0.5f, 0.5f);					                            //Bottom Right Of The Quad (Left)
+    if (m_nSideColor[SD_LEFT]!=BLACK) {                                         // we check whether the color of the left side of the cube is not black
+        glBegin(GL_LINE_LOOP);                                                  // if it is not ro, draw a square border
+        glVertex3f(-0.5f, 0.5f, 0.5f);					                        // Top Right Of The Quad (Left)
+        glVertex3f(-0.5f, 0.5f,-0.5f);					                        // Top Left Of The Quad (Left)
+        glVertex3f(-0.5f,-0.5f,-0.5f);					                        // Bottom Left Of The Quad (Left)
+        glVertex3f(-0.5f,-0.5f, 0.5f);					                        // Bottom Right Of The Quad (Left)
         glEnd();
     }
-    if (m_nSideColor[SD_BACK]!=BLACK) {                                             //sprawdzamy czy kolor tylnej strony kawalka kostki nie jest czarny
-        glBegin(GL_LINE_LOOP);                                                      //jesli nie jest ro rysujemy obramowanie kwadratu
-        glVertex3f( 0.5f,-0.5f,-0.5f);					                            //Top Right Of The Quad (Back)
-        glVertex3f(-0.5f,-0.5f,-0.5f);					                            //Top Left Of The Quad (Back)
-        glVertex3f(-0.5f, 0.5f,-0.5f);					                            //Bottom Left Of The Quad (Back)
-        glVertex3f( 0.5f, 0.5f,-0.5f);					                            //Bottom Right Of The Quad (Back)
+    if (m_nSideColor[SD_BACK]!=BLACK) {                                         // we check whether the color of the back side of the piece of cube is not black
+        glBegin(GL_LINE_LOOP);                                                  // if it is not ro, draw a square border
+        glVertex3f( 0.5f,-0.5f,-0.5f);					                        // Top Right Of The Quad (Back)
+        glVertex3f(-0.5f,-0.5f,-0.5f);					                        // Top Left Of The Quad (Back)
+        glVertex3f(-0.5f, 0.5f,-0.5f);					                        // Bottom Left Of The Quad (Back)
+        glVertex3f( 0.5f, 0.5f,-0.5f);					                        // Bottom Right Of The Quad (Back)
         glEnd();
     }
     glPopMatrix();
@@ -327,329 +337,331 @@ void TCubePiece::Draw(float x,float y,float z)                                  
 TCube::TCube(OGLWidget *widget)
 {
     this->widget = widget;
-    memset(m_pPieces, 0, sizeof(TCubePiece*)*cube_size*cube_size*cube_size);        //tworzymy zerowe wskazniki do kawalkow kostki
-    Reset();
+    memset(m_pPieces, 0, sizeof(TCubePiece*)*cube_size*cube_size*cube_size);    // we create zero pointers to the pieces of the cube
+    reset();
     //Random();
 }
 
 //---------------------------------------------------------------------------
 TCube::~TCube()
 {
-for (int x=0; x<cube_size; x++) {
-    for (int y=0; y<cube_size; y++) {
-        for (int z=0; z<cube_size; z++) {
-            if (m_pPieces[x][y][z]) delete m_pPieces[x][y][z];                  //tworzymy odpowiedni kawalek kostki i zapisujemy jego wskaznik w macierzy kawalkow
+    for (int x=0; x<cube_size; x++) {
+        for (int y=0; y<cube_size; y++) {
+            for (int z=0; z<cube_size; z++) {
+                if (m_pPieces[x][y][z]) delete m_pPieces[x][y][z];              // we create the appropriate piece of the cube and save its index in the piece matrix
             }
         }
     }
 }
 
 //---------------------------------------------------------------------------
-void TCube::Reset(void)                                                         //reset kostki - wszystkie kolory ulozone
+void TCube::reset(void)                                                         // cube reset - all colors arranged
 {
-for (int x=0; x<cube_size; x++) {
-    for (int y=0; y<cube_size; y++) {
-        for (int z=0; z<cube_size; z++) {
-            if (m_pPieces[x][y][z]) delete m_pPieces[x][y][z];                  //jesli byly jakies kawalki kostki to je usun
-            m_pPieces[x][y][z] = new TCubePiece(BYTEVEC(x,y,z));                //utworz nowe kawalki kostki w odpowiedniej pozycji
+    for (int x=0; x<cube_size; x++) {
+        for (int y=0; y<cube_size; y++) {
+            for (int z=0; z<cube_size; z++) {
+                if (m_pPieces[x][y][z]) delete m_pPieces[x][y][z];              // If there were any pieces of cube, remove them
+                m_pPieces[x][y][z] = new TCubePiece(BYTEVEC(x,y,z));            // create new cube pieces in the correct position
             }
         }
     }
 }
 
 //---------------------------------------------------------------------------
-void TCube::Random(void)                                                        //losowe poprzedkladanie kostki
+void TCube::random(void)                                                        // randomly rearranging the cube
 {
-bool bCW;
-UINT8 nSection, nAxis;
+    bool bCW;
+    UINT8 nSection, nAxis;
 
-QTime time = QTime::currentTime();
-qsrand((uint)time.msec());
-for (int i=0; i<100; i++) {                                                     //przekladamy losowo sekcje kostki 100 razy
-    bCW = (bool)(qrand() % 2);                                                   //losujemy czy rotacja ma byc wzgledem wskazowek zegara czy nie
-    nSection =  qrand() % cube_size;                                             //losujemy numer sekcji
-    nAxis = qrand() % 3;                                                         //losujemy os kostki
-    if (nAxis==0) RotateXSection(nSection, bCW, FALSE);                         //wykonujemy przekladanie sekcji kostki na osi X
-    else if (nAxis==1) RotateYSection(nSection, bCW, FALSE);                    //wykonujemy przekladanie sekcji kostki na osi Y
-    else RotateZSection(nSection, bCW, FALSE);                                  //wykonujemy przekladanie sekcji kostki na osi Z
+    QTime time = QTime::currentTime();
+    qsrand((uint)time.msec());
+    for (int i=0; i<100; i++) {                                                 // We randomly rearrange the sections of the cube 100 times
+        bCW = (bool)(qrand() % 2);                                              // we randomly choose whether the rotation should be clockwise or not
+        nSection =  qrand() % cube_size;                                        // randomly choose a section number
+        nAxis = qrand() % 3;                                                    // randomly choose axis
+        if (nAxis==0) rotateXSection(nSection, bCW, FALSE);                     // we translate the cube sections on the X axis
+        else if (nAxis==1) rotateYSection(nSection, bCW, FALSE);                // we translate the cube sections on the Y axis
+        else rotateZSection(nSection, bCW, FALSE);                              // we translate the cube sections on the Z axis
     }
 
-blueEdgeOrientation = false;
+    blueEdgeOrientation = false;
 }
 
 //---------------------------------------------------------------------------
-//Rotacja sekcji kostki na podstawie kierunku ruchu myszy i wielkosci okna wyswietlania
-bool TCube::Rotate(GLdouble* mxProjection, GLdouble* mxModel, GLint* nViewPort,
+// Cube section rotation based on mouse direction and display window size
+//---------------------------------------------------------------------------
+bool TCube::rotate(GLdouble* mxProjection, GLdouble* mxModel, GLint* nViewPort,
             int wndSizeX, int wndSizeY, int ptMouseWndX, int ptMouseWndY, int ptLastMouseWndX, int ptLastMouseWndY, OGLWidget *widget)
 {
-int i;
-double fTmp, fMinZ = DBL_MAX;
-float xMin=FLT_MAX, yMin=FLT_MAX;
-float xMax=FLT_MIN, yMax=FLT_MIN;
-int ptMouseX=ptMouseWndX, ptMouseY=wndSizeY-ptMouseWndY;                        //Zmieniamy kierunek y myszy aby pasowal do wspolrzednych wyswietlania
-int ptLastMouseX=ptLastMouseWndX, ptLastMouseY=wndSizeY-ptLastMouseWndY;
+    int i;
+    double fTmp, fMinZ = DBL_MAX;
+    float xMin=FLT_MAX, yMin=FLT_MAX;
+    float xMax=FLT_MIN, yMax=FLT_MIN;
+    int ptMouseX=ptMouseWndX, ptMouseY=wndSizeY-ptMouseWndY;                    // We change the y direction of the mouse to match the display coordinates
+    int ptLastMouseX=ptLastMouseWndX, ptLastMouseY=wndSizeY-ptLastMouseWndY;
 
-this->widget = widget;
-SIDE nSide = (SIDE)-1;
-//Na poczatku sprawdzamy czy mysz znajduje sie na kostce czy nie
-//Zapisujemy do zmiennej wszystkie punkty krawedzi projektowanej kostki
-PT3D vCubeCorner[8];
-//Sciana przednia
-gluProject( cube_size/2.0, cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[0].x, &vCubeCorner[0].y, &vCubeCorner[0].z);
-gluProject( cube_size/2.0,-cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[1].x, &vCubeCorner[1].y, &vCubeCorner[1].z);
-gluProject(-cube_size/2.0,-cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[2].x, &vCubeCorner[2].y, &vCubeCorner[2].z);
-gluProject(-cube_size/2.0, cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[3].x, &vCubeCorner[3].y, &vCubeCorner[3].z);
-//Sciana tylna
-gluProject( cube_size/2.0, cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[4].x, &vCubeCorner[4].y, &vCubeCorner[4].z);
-gluProject( cube_size/2.0,-cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[5].x, &vCubeCorner[5].y, &vCubeCorner[5].z);
-gluProject(-cube_size/2.0,-cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[6].x, &vCubeCorner[6].y, &vCubeCorner[6].z);
-gluProject(-cube_size/2.0, cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[7].x, &vCubeCorner[7].y, &vCubeCorner[7].z);
+    (void)wndSizeX;
+    this->widget = widget;
+    SIDE nSide = (SIDE)-1;
+    // First, we check whether the mouse is on the cube or not
+    // We save all edge points of the designed cube into a variable
+    PT3D vCubeCorner[8];
+    // Front wall
+    gluProject( cube_size/2.0, cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[0].x, &vCubeCorner[0].y, &vCubeCorner[0].z);
+    gluProject( cube_size/2.0,-cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[1].x, &vCubeCorner[1].y, &vCubeCorner[1].z);
+    gluProject(-cube_size/2.0,-cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[2].x, &vCubeCorner[2].y, &vCubeCorner[2].z);
+    gluProject(-cube_size/2.0, cube_size/2.0, cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[3].x, &vCubeCorner[3].y, &vCubeCorner[3].z);
+    // Back wall
+    gluProject( cube_size/2.0, cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[4].x, &vCubeCorner[4].y, &vCubeCorner[4].z);
+    gluProject( cube_size/2.0,-cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[5].x, &vCubeCorner[5].y, &vCubeCorner[5].z);
+    gluProject(-cube_size/2.0,-cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[6].x, &vCubeCorner[6].y, &vCubeCorner[6].z);
+    gluProject(-cube_size/2.0, cube_size/2.0,-cube_size/2.0, mxModel, mxProjection, nViewPort, &vCubeCorner[7].x, &vCubeCorner[7].y, &vCubeCorner[7].z);
 
-for (i=0; i<8; i++) {                                                           //obliczamy minimalne i maksymalne wspolrzedne X i Y dla sprawdzenia polozenia myszy
-    xMin = std::min(xMin, (float)vCubeCorner[i].x);
-    yMin = std::min(yMin, (float)vCubeCorner[i].y);
-    xMax = std::max(xMax, (float)vCubeCorner[i].x);
-    yMax = std::max(yMax, (float)vCubeCorner[i].y);
+    for (i=0; i<8; i++) {                                                       // we calculate the minimum and maximum X and Y coordinates to check the mouse position
+        xMin = std::min(xMin, (float)vCubeCorner[i].x);
+        yMin = std::min(yMin, (float)vCubeCorner[i].y);
+        xMax = std::max(xMax, (float)vCubeCorner[i].x);
+        yMax = std::max(yMax, (float)vCubeCorner[i].y);
     }
-if (!(xMin<=ptLastMouseX && ptLastMouseX<=xMax &&
-      yMin<=ptLastMouseY && ptLastMouseY<=yMax)) {                              //sprawdzamy czy wskaznik myszy lezy na kostce
-    return FALSE;                                                               //jesli nie to wychodzimy
+    if (!(xMin<=ptLastMouseX && ptLastMouseX<=xMax &&
+          yMin<=ptLastMouseY && ptLastMouseY<=yMax)) {                          // we check whether the mouse pointer is on the cube
+        return FALSE;                                                           // if not, we leave
     }
-//Budujemy tablice skladajaca sie z wszystkich krawedzi kostki
-PT3D vCorner[6][4] = {
-    {vCubeCorner[5], vCubeCorner[1], vCubeCorner[0], vCubeCorner[4]},           //Prawa
-    {vCubeCorner[6], vCubeCorner[2], vCubeCorner[3], vCubeCorner[7]},           //Lewa
-    {vCubeCorner[7], vCubeCorner[4], vCubeCorner[0], vCubeCorner[3]},           //Gorna
-    {vCubeCorner[6], vCubeCorner[5], vCubeCorner[1], vCubeCorner[2]},           //Dolna
-    {vCubeCorner[2], vCubeCorner[1], vCubeCorner[0], vCubeCorner[3]},           //Przednia
-    {vCubeCorner[6], vCubeCorner[5], vCubeCorner[4], vCubeCorner[7]},           //Tylna
-    };
+    // We build an array consisting of all the edges of the cube
+    PT3D vCorner[6][4] = {
+        {vCubeCorner[5], vCubeCorner[1], vCubeCorner[0], vCubeCorner[4]},       // Right
+        {vCubeCorner[6], vCubeCorner[2], vCubeCorner[3], vCubeCorner[7]},       // Left
+        {vCubeCorner[7], vCubeCorner[4], vCubeCorner[0], vCubeCorner[3]},       // Up
+        {vCubeCorner[6], vCubeCorner[5], vCubeCorner[1], vCubeCorner[2]},       // Bottom
+        {vCubeCorner[2], vCubeCorner[1], vCubeCorner[0], vCubeCorner[3]},       // Front
+        {vCubeCorner[6], vCubeCorner[5], vCubeCorner[4], vCubeCorner[7]},       // Rear
+        };
 
-//sprawdzamy czy na ktorejs stronie kostki znajdowal sie wskzanik myszy
-for (i=0; i<6; i++) {
-    if (poly4InsideTest(vCorner[i], ptLastMouseX, ptLastMouseY)) {
-        fTmp = std::min(std::min(std::min(vCorner[i][0].z, vCorner[i][1].z), vCorner[i][2].z), vCorner[i][3].z);
-        if (fTmp < fMinZ) {
-            nSide = (SIDE)i;
-            fMinZ = fTmp;
+    // we check whether the mouse pointer was on any side of the cube
+    for (i=0; i<6; i++) {
+        if (poly4InsideTest(vCorner[i], ptLastMouseX, ptLastMouseY)) {
+            fTmp = std::min(std::min(std::min(vCorner[i][0].z, vCorner[i][1].z), vCorner[i][2].z), vCorner[i][3].z);
+            if (fTmp < fMinZ) {
+                nSide = (SIDE)i;
+                fMinZ = fTmp;
             }
         }
     }
 
-if (nSide==-1) return FALSE;                                                    //wskaznik myszy nie znajdowal sie na zadnej stronie kostki
+    if ((int)nSide==-1) return FALSE;                                           // the mouse pointer was not on any side of the cube
 
-//gdy juz mamy sprawdzona strone kostki, to sprawdzamy teraz kierunek rotacji sekcji
-QVector2D vX((float)(vCorner[nSide][1].x - vCorner[nSide][0].x),(float)(vCorner[nSide][1].y - vCorner[nSide][0].y));
-QVector2D vY((float)(vCorner[nSide][2].x - vCorner[nSide][1].x),(float)(vCorner[nSide][2].y - vCorner[nSide][1].y));
-QVector2D vMouse((float)(ptMouseX-ptLastMouseX),(float)(ptMouseY-ptLastMouseY));    //obliczamy wektor przemieszczenia myszy
-if (vMouse.length() < g_fMinMouseLength) return FALSE;                          //sprawdzamy czy ruch myszy nie jest za maly, jesli tak to anulujemy ten ruch
-vX.normalize();                                                                 //sprawdzamy kierunek ruchu poprzez sprawdzenie kar
-vY.normalize();                                                                 //wektora ruchu myszy
-vMouse.normalize();                                                             //i wektora X/Y strony kostki
+    // Once we have checked the side of the cube, we now check the direction of rotation of the section
+    QVector2D vX((float)(vCorner[nSide][1].x - vCorner[nSide][0].x),(float)(vCorner[nSide][1].y - vCorner[nSide][0].y));
+    QVector2D vY((float)(vCorner[nSide][2].x - vCorner[nSide][1].x),(float)(vCorner[nSide][2].y - vCorner[nSide][1].y));
+    QVector2D vMouse((float)(ptMouseX-ptLastMouseX),(float)(ptMouseY-ptLastMouseY));    // we calculate the mouse displacement vector
+    if (vMouse.length() < g_fMinMouseLength) return FALSE;                      // we check whether the mouse movement is not too small, if so, we cancel this movement
+    vX.normalize();                                                             // we check the direction of movement by checking
+    vY.normalize();                                                             // mouse movement vector
+    vMouse.normalize();                                                         // and the X/Y vector of the cube side
 
-float xDiff, yDiff;
-xDiff = Vec2DAngle(vX, vMouse); if (_isnan(xDiff)) return FALSE;
-yDiff = Vec2DAngle(vY, vMouse); if (_isnan(yDiff)) return FALSE;
-float minDiff = (float)std::min(std::min(std::min(fabs(xDiff), fabs(yDiff)), fabs(xDiff-180)), fabs(yDiff-180));
-if (minDiff > g_fMaxMouseAngle) return FALSE;                                   //Jesli kata okaze sie za duzy do zakwalifikowania kierunku rotacji to go anulujemy
+    float xDiff, yDiff;
+    xDiff = Vec2DAngle(vX, vMouse); if (_isnan(xDiff)) return FALSE;
+    yDiff = Vec2DAngle(vY, vMouse); if (_isnan(yDiff)) return FALSE;
+    float minDiff = (float)std::min(std::min(std::min(fabs(xDiff), fabs(yDiff)), fabs(xDiff-180)), fabs(yDiff-180));
+    if (minDiff > g_fMaxMouseAngle) return FALSE;                                   // If the kata turns out to be too large to qualify the direction of rotation, we cancel it
 
-//Teraz sprawdzamy ktora sekcje kostki nalezy obrocic
-UINT8 nSection;
-minDiff += ALMOST_ZERO;                                                         //zwiekszamy wartosc w celu porownania z oryginalna wartoscia
-if (fabs(xDiff) <= minDiff) {                                                   //sprawdzamy czy kat wektora ruchu myszy jest zgodny z ktromys z katow wektora stron
-   nSection = getYsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);          //obliczamy nr sekcji do obrocenia
-   switch (nSide) {
-      case SD_FRONT:    RotateYSection(nSection, TRUE, TRUE);  break;
-      case SD_BACK:     RotateYSection(nSection, FALSE, TRUE); break;
-      case SD_LEFT:     RotateYSection(nSection, TRUE, TRUE);  break;
-      case SD_RIGHT:    RotateYSection(nSection, FALSE, TRUE); break;
-      case SD_TOP:      RotateZSection(nSection, FALSE, TRUE); break;
-      case SD_BOTTOM:   RotateZSection(nSection, TRUE, TRUE);  break;
-   }
-}
-else if (fabs(xDiff-180) <= minDiff) {                                          //sprawdzamy czy kat wektora ruchu myszy jest zgodny z ktromys z katow wektora stron
-   nSection = getYsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);          //obliczamy nr sekcji do obrocenia
-   switch (nSide) {
-      case SD_FRONT:    RotateYSection(nSection, FALSE, TRUE); break;
-      case SD_BACK:     RotateYSection(nSection, TRUE, TRUE);  break;
-      case SD_LEFT:     RotateYSection(nSection, FALSE, TRUE); break;
-      case SD_RIGHT:    RotateYSection(nSection, TRUE, TRUE);  break;
-      case SD_TOP:      RotateZSection(nSection, TRUE, TRUE);  break;
-      case SD_BOTTOM:   RotateZSection(nSection, FALSE, TRUE); break;
-   }
-}
-else if (fabs(yDiff) <= minDiff) {                                              //sprawdzamy czy kat wektora ruchu myszy jest zgodny z ktromys z katow wektora stron
-   nSection = getXsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);          //obliczamy nr sekcji do obrocenia
-   switch (nSide) {
-      case SD_FRONT:    RotateXSection(nSection, FALSE, TRUE); break;
-      case SD_BACK:     RotateXSection(nSection, TRUE,  TRUE); break;
-      case SD_LEFT:     RotateZSection(nSection, FALSE, TRUE); break;
-      case SD_RIGHT:    RotateZSection(nSection, TRUE, TRUE);  break;
-      case SD_TOP:      RotateXSection(nSection, TRUE,  TRUE); break;
-      case SD_BOTTOM:   RotateXSection(nSection, FALSE, TRUE); break;
-   }
-}
-else if (fabs(yDiff-180) <= minDiff) {                                          //sprawdzamy czy kat wektora ruchu myszy jest zgodny z ktromys z katow wektora stron
-   nSection = getXsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);          //obliczamy nr sekcji do obrocenia
-   switch (nSide) {
-      case SD_FRONT:    RotateXSection(nSection, TRUE,  TRUE); break;
-      case SD_BACK:     RotateXSection(nSection, FALSE, TRUE); break;
-      case SD_LEFT:     RotateZSection(nSection, TRUE, TRUE);  break;
-      case SD_RIGHT:    RotateZSection(nSection, FALSE, TRUE); break;
-      case SD_TOP:      RotateXSection(nSection, FALSE, TRUE); break;
-      case SD_BOTTOM:   RotateXSection(nSection, TRUE,  TRUE); break;
-   }
-}
-else return false;
-return TRUE;
+    // Now we check which section of the cube should be rotated
+    UINT8 nSection;
+    minDiff += ALMOST_ZERO;                                                     // we increase the value to compare with the original value
+    if (fabs(xDiff) <= minDiff) {                                               // we check whether the angle of the mouse movement vector is consistent with any of the angles of the page vector
+       nSection = getYsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);      // we calculate the section number to be rotated
+       switch (nSide) {
+          case SD_FRONT:    rotateYSection(nSection, TRUE, TRUE);  break;
+          case SD_BACK:     rotateYSection(nSection, FALSE, TRUE); break;
+          case SD_LEFT:     rotateYSection(nSection, TRUE, TRUE);  break;
+          case SD_RIGHT:    rotateYSection(nSection, FALSE, TRUE); break;
+          case SD_TOP:      rotateZSection(nSection, FALSE, TRUE); break;
+          case SD_BOTTOM:   rotateZSection(nSection, TRUE, TRUE);  break;
+       }
+    }
+    else if (fabs(xDiff-180) <= minDiff) {                                      // we check whether the angle of the mouse movement vector is consistent with any of the angles of the page vector
+       nSection = getYsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);      // we calculate the section number to be rotated
+       switch (nSide) {
+          case SD_FRONT:    rotateYSection(nSection, FALSE, TRUE); break;
+          case SD_BACK:     rotateYSection(nSection, TRUE, TRUE);  break;
+          case SD_LEFT:     rotateYSection(nSection, FALSE, TRUE); break;
+          case SD_RIGHT:    rotateYSection(nSection, TRUE, TRUE);  break;
+          case SD_TOP:      rotateZSection(nSection, TRUE, TRUE);  break;
+          case SD_BOTTOM:   rotateZSection(nSection, FALSE, TRUE); break;
+       }
+    }
+    else if (fabs(yDiff) <= minDiff) {                                          // we check whether the angle of the mouse movement vector is consistent with any of the angles of the page vector
+       nSection = getXsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);      // we calculate the section number to be rotated
+       switch (nSide) {
+          case SD_FRONT:    rotateXSection(nSection, FALSE, TRUE); break;
+          case SD_BACK:     rotateXSection(nSection, TRUE,  TRUE); break;
+          case SD_LEFT:     rotateZSection(nSection, FALSE, TRUE); break;
+          case SD_RIGHT:    rotateZSection(nSection, TRUE, TRUE);  break;
+          case SD_TOP:      rotateXSection(nSection, TRUE,  TRUE); break;
+          case SD_BOTTOM:   rotateXSection(nSection, FALSE, TRUE); break;
+       }
+    }
+    else if (fabs(yDiff-180) <= minDiff) {                                      // we check whether the angle of the mouse movement vector is consistent with any of the angles of the page vector
+       nSection = getXsection(vCorner[nSide], ptLastMouseX, ptLastMouseY);      // we calculate the section number to be rotated
+       switch (nSide) {
+          case SD_FRONT:    rotateXSection(nSection, TRUE,  TRUE); break;
+          case SD_BACK:     rotateXSection(nSection, FALSE, TRUE); break;
+          case SD_LEFT:     rotateZSection(nSection, TRUE, TRUE);  break;
+          case SD_RIGHT:    rotateZSection(nSection, FALSE, TRUE); break;
+          case SD_TOP:      rotateXSection(nSection, FALSE, TRUE); break;
+          case SD_BOTTOM:   rotateXSection(nSection, TRUE,  TRUE); break;
+       }
+    }
+    else return false;
+    return TRUE;
 }
 
 //---------------------------------------------------------------------------
-void TCube::RotateXSection(UINT8 nSection, BOOL bCW, BOOL bAnimate)             //rotacja sekcji kostki na osi X
+void TCube::rotateXSection(UINT8 nSection, BOOL bCW, BOOL bAnimate)             // rotation of the cube sections on the X axis
 {
-int i, j, x=nSection, y, z, size;
-TCubePiece* TmpPiece[cube_size-1];
-float fAngle = bCW ? 90.0f : -90.0f;
-if (nSection>=cube_size) return;
-TCubePiece* pieces[cube_size*cube_size];
-for (i=0, y=0; y<cube_size; y++)
-    for (z=0; z<cube_size; z++) pieces[i++]=m_pPieces[x][y][z];                 //zapamietujemy ktore kawalki kostki beda obracane
-if (bAnimate) AnimateRotation(pieces, ELEMENTS_OF(pieces), QVector3D(1,0,0), fAngle); //wykonujemy animacje obrotu tych kawalkow
-for (i=0; i<ELEMENTS_OF(pieces); i++) pieces[i]->RotateX(bCW);                  //obkrecamy kazdy kawalek z osobna
-if (bCW) {                                                                      //czy rotacja sekcji kostki zgodnie z kierunkiem wskazowek zegara
-    size = cube_size-1;                                                         //przekladamy kawalki sekcji kostki zgodnie z kierunkiem wskazowek zegara
-    for (j=0; j<cube_size/2; j++) {
-        for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[x][j][i+j];
-        for (i=0; i<size; i++) m_pPieces[x][j][i+j] = m_pPieces[x][i+j][cube_size-1-j];
-        for (i=0; i<size; i++) m_pPieces[x][i+j][cube_size-1-j] = m_pPieces[x][cube_size-1-j][cube_size-1-j-i];
-        for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j][cube_size-1-j-i] = m_pPieces[x][cube_size-1-j-i][j];
-        for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j-i][j] = TmpPiece[i];
-        size -= 2;
+    int i, j, x=nSection, y, z, size;
+    TCubePiece* TmpPiece[cube_size-1];
+    float fAngle = bCW ? 90.0f : -90.0f;
+    if (nSection>=cube_size) return;
+    TCubePiece* pieces[cube_size*cube_size];
+    for (i=0, y=0; y<cube_size; y++)
+        for (z=0; z<cube_size; z++) pieces[i++]=m_pPieces[x][y][z];             // we remember which pieces of the cube will be rotated
+    if (bAnimate) animateRotation(pieces, ELEMENTS_OF(pieces), QVector3D(1,0,0), fAngle); // we animate the rotation of these pieces
+    for (i=0; i<(int)ELEMENTS_OF(pieces); i++) pieces[i]->rotateX(bCW);         // We rotate each piece separately
+    if (bCW) {                                                                  // or rotation of the cube sections clockwise
+        size = cube_size-1;                                                     // we move the pieces of the cube section clockwise
+        for (j=0; j<cube_size/2; j++) {
+            for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[x][j][i+j];
+            for (i=0; i<size; i++) m_pPieces[x][j][i+j] = m_pPieces[x][i+j][cube_size-1-j];
+            for (i=0; i<size; i++) m_pPieces[x][i+j][cube_size-1-j] = m_pPieces[x][cube_size-1-j][cube_size-1-j-i];
+            for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j][cube_size-1-j-i] = m_pPieces[x][cube_size-1-j-i][j];
+            for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j-i][j] = TmpPiece[i];
+            size -= 2;
         }
     }
-else {                                                                          //przekladamy kawalki sekcji kostki przeciwnie do ruchu wskazowek zegara
-    size = cube_size-1;
-    for (j=0; j<cube_size/2; j++) {
-        for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[x][j][i+j];
-        for (i=0; i<size; i++) m_pPieces[x][j][i+j] = m_pPieces[x][cube_size-1-j-i][j];
-        for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j-i][j] = m_pPieces[x][cube_size-1-j][cube_size-1-j-i];
-        for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j][cube_size-1-j-i] = m_pPieces[x][i+j][cube_size-1-j];
-        for (i=0; i<size; i++) m_pPieces[x][i+j][cube_size-1-j] = TmpPiece[i];
-        size -= 2;
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-void TCube::RotateYSection(UINT8 nSection, BOOL bCW, BOOL bAnimate)             //rotacja sekcji kostki na osi Y
-{
-int i, j, x, y=nSection, z, size;
-TCubePiece* TmpPiece[cube_size-1];
-float fAngle = bCW ? 90.0f : -90.0f;
-if (nSection>=cube_size) return;
-TCubePiece* pieces[cube_size*cube_size];
-for (i=0, x=0; x<cube_size; x++)
-    for (z=0; z<cube_size; z++) pieces[i++]=m_pPieces[x][y][z];                 //zapamietujemy ktore kawalki kostki beda obracane
-if (bAnimate) AnimateRotation(pieces, ELEMENTS_OF(pieces), QVector3D(0,1,0), fAngle); //wykonujemy animacje obrotu tych kawalkow
-for (i=0; i<ELEMENTS_OF(pieces); i++) pieces[i]->RotateY(bCW);                  //obkrecamy kazdy kawalek z osobna
-if (bCW) {                                                                      //czy rotacja sekcji kostki zgodnie z kierunkiem wskazowek zegara
-    size = cube_size-1;                                                         //przekladamy kawalki sekcji kostki zgodnie z kierunkiem wskazowek zegara
-    for (j=0; j<cube_size/2; j++) {
-        for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][y][i+j];
-        for (i=0; i<size; i++) m_pPieces[j][y][i+j] = m_pPieces[cube_size-1-j-i][y][j];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][y][j] = m_pPieces[cube_size-1-j][y][cube_size-1-j-i];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j][y][cube_size-1-j-i] = m_pPieces[i+j][y][cube_size-1-j];
-        for (i=0; i<size; i++) m_pPieces[i+j][y][cube_size-1-j] = TmpPiece[i];
-        size -= 2;
-        }
-    }
-else {                                                                          //przekladamy kawalki sekcji kostki przeciwnie do ruchu wskazowek zegara
-    size = cube_size-1;
-    for (j=0; j<cube_size/2; j++) {
-        for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][y][i+j];
-        for (i=0; i<size; i++) m_pPieces[j][y][i+j] = m_pPieces[i+j][y][cube_size-1-j];
-        for (i=0; i<size; i++) m_pPieces[i+j][y][cube_size-1-j] = m_pPieces[cube_size-1-j][y][cube_size-1-j-i];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j][y][cube_size-1-j-i] = m_pPieces[cube_size-1-j-i][y][j];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][y][j] = TmpPiece[i];
-        size -= 2;
+    else {                                                                      // we move the pieces of the cube section counterclockwise
+        size = cube_size-1;
+        for (j=0; j<cube_size/2; j++) {
+            for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[x][j][i+j];
+            for (i=0; i<size; i++) m_pPieces[x][j][i+j] = m_pPieces[x][cube_size-1-j-i][j];
+            for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j-i][j] = m_pPieces[x][cube_size-1-j][cube_size-1-j-i];
+            for (i=0; i<size; i++) m_pPieces[x][cube_size-1-j][cube_size-1-j-i] = m_pPieces[x][i+j][cube_size-1-j];
+            for (i=0; i<size; i++) m_pPieces[x][i+j][cube_size-1-j] = TmpPiece[i];
+            size -= 2;
         }
     }
 }
 
 //---------------------------------------------------------------------------
-void TCube::RotateZSection(UINT8 nSection, BOOL bCW, BOOL bAnimate)             //rotacja sekcji kostki na osi Z
+void TCube::rotateYSection(UINT8 nSection, BOOL bCW, BOOL bAnimate)             // rotation of the cube sections on the Y axis
 {
-int i, j, x, y, z=nSection, size;
-TCubePiece* TmpPiece[cube_size-1];
-float fAngle = bCW ? 90.0f : -90.0f;
-if (nSection>=cube_size) return;
-TCubePiece* pieces[cube_size*cube_size];
-for (i=0, x=0; x<cube_size; x++)
-    for (y=0; y<cube_size; y++) pieces[i++]=m_pPieces[x][y][z];                 //zapamietujemy ktore kawalki kostki beda obracane
-if (bAnimate) AnimateRotation(pieces, ELEMENTS_OF(pieces), QVector3D(0,0,1), fAngle); //wykonujemy animacje obrotu tych kawalkow
-for (i=0; i<ELEMENTS_OF(pieces); i++) pieces[i]->RotateZ(bCW);                  //obkrecamy kazdy kawalek z osobna
-if (bCW) {                                                                      //czy rotacja sekcji kostki zgodnie z kierunkiem wskazowek zegara
-    size = cube_size-1;                                                         //przekladamy kawalki sekcji kostki zgodnie z kierunkiem wskazowek zegara
-    for (j=0; j<cube_size/2; j++) {
-        for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][i+j][z];
-        for (i=0; i<size; i++) m_pPieces[j][i+j][z] = m_pPieces[i+j][cube_size-1-j][z];
-        for (i=0; i<size; i++) m_pPieces[i+j][cube_size-1-j][z] = m_pPieces[cube_size-1-j][cube_size-1-j-i][z];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j][cube_size-1-j-i][z] = m_pPieces[cube_size-1-j-i][j][z];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][j][z] = TmpPiece[i];
-        size -= 2;
+    int i, j, x, y=nSection, z, size;
+    TCubePiece* TmpPiece[cube_size-1];
+    float fAngle = bCW ? 90.0f : -90.0f;
+    if (nSection>=cube_size) return;
+    TCubePiece* pieces[cube_size*cube_size];
+    for (i=0, x=0; x<cube_size; x++)
+        for (z=0; z<cube_size; z++) pieces[i++]=m_pPieces[x][y][z];             // we remember which pieces of the cube will be rotated
+    if (bAnimate) animateRotation(pieces, ELEMENTS_OF(pieces), QVector3D(0,1,0), fAngle); // we animate the rotation of these pieces
+    for (i=0; i<(int)ELEMENTS_OF(pieces); i++) pieces[i]->rotateY(bCW);         // We rotate each piece separately
+    if (bCW) {                                                                  // or rotation of the cube sections clockwise
+        size = cube_size-1;                                                     // we move the pieces of the cube section clockwise
+        for (j=0; j<cube_size/2; j++) {
+            for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][y][i+j];
+            for (i=0; i<size; i++) m_pPieces[j][y][i+j] = m_pPieces[cube_size-1-j-i][y][j];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][y][j] = m_pPieces[cube_size-1-j][y][cube_size-1-j-i];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j][y][cube_size-1-j-i] = m_pPieces[i+j][y][cube_size-1-j];
+            for (i=0; i<size; i++) m_pPieces[i+j][y][cube_size-1-j] = TmpPiece[i];
+            size -= 2;
         }
     }
-else {                                                                          //przekladamy kawalki sekcji kostki przeciwnie do ruchu wskazowek zegara
-    size = cube_size-1;
-    for (j=0; j<cube_size/2; j++) {
-        for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][i+j][z];
-        for (i=0; i<size; i++) m_pPieces[j][i+j][z] = m_pPieces[cube_size-1-j-i][j][z];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][j][z] = m_pPieces[cube_size-1-j][cube_size-1-j-i][z];
-        for (i=0; i<size; i++) m_pPieces[cube_size-1-j][cube_size-1-j-i][z] = m_pPieces[i+j][cube_size-1-j][z];
-        for (i=0; i<size; i++) m_pPieces[i+j][cube_size-1-j][z] = TmpPiece[i];
-        size -= 2;
+    else {                                                                      // we move the pieces of the cube section counterclockwise
+        size = cube_size-1;
+        for (j=0; j<cube_size/2; j++) {
+            for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][y][i+j];
+            for (i=0; i<size; i++) m_pPieces[j][y][i+j] = m_pPieces[i+j][y][cube_size-1-j];
+            for (i=0; i<size; i++) m_pPieces[i+j][y][cube_size-1-j] = m_pPieces[cube_size-1-j][y][cube_size-1-j-i];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j][y][cube_size-1-j-i] = m_pPieces[cube_size-1-j-i][y][j];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][y][j] = TmpPiece[i];
+            size -= 2;
         }
     }
 }
 
 //---------------------------------------------------------------------------
-void TCube::AnimateRotation(TCubePiece* piece[], int ctPieces, QVector3D v, float fAngle)
+void TCube::rotateZSection(UINT8 nSection, BOOL bCW, BOOL bAnimate)             // rotation of the cube sections on the Z axis
 {
-int i,x;
-
-if (g_nRotationSteps <= 1) return;
-for (i=0; (UINT)i<g_nRotationSteps; i++) {                                      //wykonuj w petli poszczegolne klatki animacji
-    float fRotAngle = fAngle * i/g_nRotationSteps;                              //oblicz odpowiedni kat nachylenie sekcji kostki
-    for (int x=0; x<ctPieces; x++) piece[x]->SetRotation(fRotAngle, v);         //i zapisz kat dla wszyskich kawalkow w tej sekcji kostki
-    if (widget) {
-        widget->updateGL();
+    int i, j, x, y, z=nSection, size;
+    TCubePiece* TmpPiece[cube_size-1];
+    float fAngle = bCW ? 90.0f : -90.0f;
+    if (nSection>=cube_size) return;
+    TCubePiece* pieces[cube_size*cube_size];
+    for (i=0, x=0; x<cube_size; x++)
+        for (y=0; y<cube_size; y++) pieces[i++]=m_pPieces[x][y][z];             // we remember which pieces of the cube will be rotated
+    if (bAnimate) animateRotation(pieces, ELEMENTS_OF(pieces), QVector3D(0,0,1), fAngle); // we animate the rotation of these pieces
+    for (i=0; i<(int)ELEMENTS_OF(pieces); i++) pieces[i]->rotateZ(bCW);         // We rotate each piece separately
+    if (bCW) {                                                                  // or rotation of the cube sections clockwise
+        size = cube_size-1;                                                     // we move the pieces of the cube section clockwise
+        for (j=0; j<cube_size/2; j++) {
+            for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][i+j][z];
+            for (i=0; i<size; i++) m_pPieces[j][i+j][z] = m_pPieces[i+j][cube_size-1-j][z];
+            for (i=0; i<size; i++) m_pPieces[i+j][cube_size-1-j][z] = m_pPieces[cube_size-1-j][cube_size-1-j-i][z];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j][cube_size-1-j-i][z] = m_pPieces[cube_size-1-j-i][j][z];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][j][z] = TmpPiece[i];
+            size -= 2;
+        }
     }
-}
-for (x=0; x<ctPieces; x++) piece[x]->ClrRotation();                             //na koncu animacji wyzeruj katy nachylenia wszyskich kawalkow z obracanej sekcji kostki
+    else {                                                                      // we move the pieces of the cube section counterclockwise
+        size = cube_size-1;
+        for (j=0; j<cube_size/2; j++) {
+            for (i=0; i<size; i++) TmpPiece[i] = m_pPieces[j][i+j][z];
+            for (i=0; i<size; i++) m_pPieces[j][i+j][z] = m_pPieces[cube_size-1-j-i][j][z];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j-i][j][z] = m_pPieces[cube_size-1-j][cube_size-1-j-i][z];
+            for (i=0; i<size; i++) m_pPieces[cube_size-1-j][cube_size-1-j-i][z] = m_pPieces[i+j][cube_size-1-j][z];
+            for (i=0; i<size; i++) m_pPieces[i+j][cube_size-1-j][z] = TmpPiece[i];
+            size -= 2;
+        }
+    }
 }
 
 //---------------------------------------------------------------------------
-void TCube::Draw(void)                                                          //rysowanie calej kostki
+void TCube::animateRotation(TCubePiece* piece[], int ctPieces, QVector3D v, float fAngle)
 {
-int x, y, z;
-float posx, posy, posz;
-posx = -(cube_size-1)/2.0;                                                      //liczymy poczatkowo pozycje x dla kawalka kostki
-for (x=0; x<cube_size; x++) {
-    posy = -(cube_size-1)/2.0;                                                  //liczymy poczatkowo pozycje y dla kawalka kostki
-    for (y=0; y<cube_size; y++) {
-        posz = -(cube_size-1)/2.0;                                              //liczymy poczatkowo pozycje z dla kawalka kostki
-        for (z=0; z<cube_size; z++) {
-            m_pPieces[x][y][z]->Draw(posx, posy, posz);                         //rysuj odpowiedni kawalek kostki w wyznaczonej pozycji
-            posz += 1.0;                                                        //zwieksz pozycje z kawalka kostki
+    int i,x;
+
+    if (g_nRotationSteps <= 1) return;
+    for (i=0; (UINT)i<g_nRotationSteps; i++) {                                  // execute individual animation frames in a loop
+        float fRotAngle = fAngle * i/g_nRotationSteps;                          // calculate the appropriate angle of inclination of the cube section
+        for (int x=0; x<ctPieces; x++) piece[x]->setRotation(fRotAngle, v);     // and write down the angle for all pieces in this section of the cube
+        if (widget) {
+            widget->updateGL();
+        }
+    }
+    for (x=0; x<ctPieces; x++) piece[x]->clrRotation();                         // at the end of the animation, reset the inclination angles of all pieces from the rotated cube section
+}
+
+//---------------------------------------------------------------------------
+void TCube::draw(void)                                                          // drawing the whole cube
+{
+    int x, y, z;
+    float posx, posy, posz;
+    posx = -(cube_size-1)/2.0;                                                  // We initially count the x positions for a piece of the cube
+    for (x=0; x<cube_size; x++) {
+        posy = -(cube_size-1)/2.0;                                              // We initially count the y positions for a piece of the cube
+        for (y=0; y<cube_size; y++) {
+            posz = -(cube_size-1)/2.0;                                          // We initially count the z positions for a piece of the cube
+            for (z=0; z<cube_size; z++) {
+                m_pPieces[x][y][z]->draw(posx, posy, posz);                     // draw the appropriate piece of the cube in the designated position
+                posz += 1.0;                                                    // increase position z piece of cubez
             }
-        posy += 1.0;                                                            //zwieksz pozycje y kawalka kostki
+            posy += 1.0;                                                        // increase position y piece of cubez
         }
-    posx += 1.0;                                                                //zwieksz pozycje x kawalka kostki
+        posx += 1.0;                                                            // increase position x piece of cube
     }
 }
 
 //---------------------------------------------------------------------------
-bool TCube::Check(void)                                                         //sprawdza czy kostka zostala ulozona
+bool TCube::check(void)                                                         // checks whether the cube has been solved
 {
     int x, y, z;
     SIDECOLOR sidecolor;
@@ -681,7 +693,7 @@ bool TCube::Check(void)                                                         
 }
 
 //---------------------------------------------------------------------------
-SIDE TCube::FindWhiteCrossSide(void)
+SIDE TCube::findWhiteCrossSide(void)
 {
     if (m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT] == WHITE) return SD_RIGHT;
     if (m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT] == WHITE) return SD_LEFT;
@@ -691,8 +703,9 @@ SIDE TCube::FindWhiteCrossSide(void)
     if (m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK] == WHITE) return SD_BACK;
     return (SIDE)-1;
 }
+
 //---------------------------------------------------------------------------
-bool TCube::CheckWhiteCross(SIDE whiteCrossSide)
+bool TCube::checkWhiteCross(SIDE whiteCrossSide)
 {
     switch (whiteCrossSide) {
     case SD_RIGHT  :
@@ -736,7 +749,7 @@ bool TCube::CheckWhiteCross(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-bool TCube::CheckWhiteCrossCorners(SIDE whiteCrossSide)
+bool TCube::checkWhiteCrossCorners(SIDE whiteCrossSide)
 {
     switch (whiteCrossSide) {
     case SD_RIGHT  :
@@ -780,9 +793,11 @@ bool TCube::CheckWhiteCrossCorners(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-bool TCube::CheckSecondLayer(SIDE whiteCrossSide)
+bool TCube::checkSecondLayer(SIDE whiteCrossSide)
 {
     SIDECOLOR color;
+    (void)whiteCrossSide;
+
     color = m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT];
     if (color != m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_RIGHT]) return false;
     if (color != m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_RIGHT]) return false;
@@ -803,8 +818,9 @@ bool TCube::CheckSecondLayer(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-bool TCube::CheckBlueCross(SIDE whiteCrossSide)
+bool TCube::checkBlueCross(SIDE whiteCrossSide)
 {
+    (void)whiteCrossSide;
     if (BLUE != m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BOTTOM]) return false;
     if (BLUE != m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_BOTTOM]) return false;
     if (BLUE != m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_BOTTOM]) return false;
@@ -814,8 +830,9 @@ bool TCube::CheckBlueCross(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-bool TCube::CheckEdgePermutationOfBlueCross(SIDE whiteCrossSide)
+bool TCube::checkEdgePermutationOfBlueCross(SIDE whiteCrossSide)
 {
+    (void)whiteCrossSide;
     if (m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK] != m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BACK]) return false;
     if (m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT] != m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_RIGHT]) return false;
     if (m_pPieces[cube_mid_pos][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT] != m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_FRONT]) return false;
@@ -825,11 +842,12 @@ bool TCube::CheckEdgePermutationOfBlueCross(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-bool TCube::CheckPermutationOfBlueCorners(SIDE whiteCrossSide)
+bool TCube::checkPermutationOfBlueCorners(SIDE whiteCrossSide)
 {
     SIDECOLOR color1, color2, color3;
     SIDECOLOR colorBottom, colorLeft, colorBack, colorRight, colorFront;
 
+    (void)whiteCrossSide;
     colorBottom = BLUE;
     colorLeft   = m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT];
     colorBack   = m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK];
@@ -872,11 +890,12 @@ bool TCube::CheckPermutationOfBlueCorners(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-bool TCube::CheckOrientationOfBlueCorners(SIDE whiteCrossSide)
+bool TCube::checkOrientationOfBlueCorners(SIDE whiteCrossSide)
 {
     SIDECOLOR color1, color2, color3;
     SIDECOLOR colorBottom, colorLeft, colorBack, colorRight, colorFront;
 
+    (void)whiteCrossSide;
     colorBottom = BLUE;
     colorLeft   = m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT];
     colorBack   = m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK];
@@ -919,26 +938,26 @@ bool TCube::CheckOrientationOfBlueCorners(SIDE whiteCrossSide)
 }
 
 //---------------------------------------------------------------------------
-void TCube::WhiteCrossSideToTop(SIDE whiteCrossSide)
+void TCube::whiteCrossSideToTop(SIDE whiteCrossSide)
 {
     switch (whiteCrossSide) {
-    case SD_RIGHT  : RotateZSection(cube_mid_pos, TRUE, TRUE); break;
-    case SD_LEFT   : RotateZSection(cube_mid_pos, FALSE, TRUE); break;
+    case SD_RIGHT  : rotateZSection(cube_mid_pos, TRUE, TRUE); break;
+    case SD_LEFT   : rotateZSection(cube_mid_pos, FALSE, TRUE); break;
     case SD_TOP    : break;
-    case SD_BOTTOM : RotateXSection(cube_mid_pos, TRUE, TRUE); break;
-    case SD_FRONT  : RotateXSection(cube_mid_pos, FALSE, TRUE); break;
-    case SD_BACK   : RotateXSection(cube_mid_pos, TRUE, TRUE); break;
+    case SD_BOTTOM : rotateXSection(cube_mid_pos, TRUE, TRUE); break;
+    case SD_FRONT  : rotateXSection(cube_mid_pos, FALSE, TRUE); break;
+    case SD_BACK   : rotateXSection(cube_mid_pos, TRUE, TRUE); break;
     }
 }
 
 //---------------------------------------------------------------------------
-void TCube::ArrangeWhiteCross(void)
+void TCube::arrangeWhiteCross(void)
 {
     bool RotDownSide = false;
     SIDECOLOR color;
 
     // SD_BOTTOM
-    if (m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_BOTTOM] == WHITE) {  //dol
+    if (m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_BOTTOM] == WHITE) {            // bottom
         color = m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_FRONT];
         if (color == m_pPieces[cube_mid_pos][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT]) {
             moves.append(ROT_F);
@@ -949,7 +968,7 @@ void TCube::ArrangeWhiteCross(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BOTTOM] == WHITE) { // gora
+    if (m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BOTTOM] == WHITE) {                      // up
         color = m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BACK];
         if (color == m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK]) {
             moves.append(ROT_B);
@@ -960,7 +979,7 @@ void TCube::ArrangeWhiteCross(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_BOTTOM] == WHITE) {  //prawo
+    if (m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_BOTTOM] == WHITE) {            // right
         color = m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_RIGHT];
         if (color == m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT]) {
             moves.append(ROT_R);
@@ -971,7 +990,7 @@ void TCube::ArrangeWhiteCross(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[0][0][cube_mid_pos]->m_nSideColor[SD_BOTTOM] == WHITE) { // lewo
+    if (m_pPieces[0][0][cube_mid_pos]->m_nSideColor[SD_BOTTOM] == WHITE) {                      // left
         color = m_pPieces[0][0][cube_mid_pos]->m_nSideColor[SD_LEFT];
         if (color == m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT]) {
             moves.append(ROT_L);
@@ -989,7 +1008,7 @@ void TCube::ArrangeWhiteCross(void)
     }
 
     // SD_TOP
-    if (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_TOP] == WHITE) {  //dol
+    if (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_TOP] == WHITE) {     // bottom
         color = m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT];
         if (color != m_pPieces[cube_mid_pos][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT]) {
             moves.append(ROT_F);
@@ -997,7 +1016,7 @@ void TCube::ArrangeWhiteCross(void)
             return;
         }
     }
-    if (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_TOP] == WHITE) { // gora
+    if (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_TOP] == WHITE) {               // up
         color = m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK];
         if (color != m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK]) {
             moves.append(ROT_B);
@@ -1005,7 +1024,7 @@ void TCube::ArrangeWhiteCross(void)
             return;
         }
     }
-    if (m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_TOP] == WHITE) {  //prawo
+    if (m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_TOP] == WHITE) {     // right
         color = m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_RIGHT];
         if (color != m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT]) {
             moves.append(ROT_R);
@@ -1013,7 +1032,7 @@ void TCube::ArrangeWhiteCross(void)
             return;
         }
     }
-    if (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_TOP] == WHITE) { // lewo
+    if (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_TOP] == WHITE) {               // left
         color = m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT];
         if (color != m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT]) {
             moves.append(ROT_L);
@@ -1023,15 +1042,15 @@ void TCube::ArrangeWhiteCross(void)
     }
 
     // SD_RIGHT
-    if (m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_RIGHT] == WHITE) {  //dol
+    if (m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_RIGHT] == WHITE) {             // bottom
         moves.append(ROT_R); moves.append(ROT_F); moves.append(ROT_D); moves.append(ROT_FCCW);
         return;
     }
-    if (m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_RIGHT] == WHITE) { // gora
+    if (m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_RIGHT] == WHITE) {   // up
         moves.append(ROT_R); moves.append(ROT_BCCW); moves.append(ROT_D); moves.append(ROT_B);
         return;
     }
-    if (m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_RIGHT] == WHITE) {  //prawo
+    if (m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_RIGHT] == WHITE) {             // right
         color = m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_BACK];
         if (color == m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK]) {
             moves.append(ROT_B);
@@ -1043,7 +1062,7 @@ void TCube::ArrangeWhiteCross(void)
         }
         return;
     }
-    if (m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_RIGHT] == WHITE) { // lewo
+    if (m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_RIGHT] == WHITE) {   // left
         color = m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT];
         if (color == m_pPieces[cube_mid_pos][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT]) {
             moves.append(ROT_FCCW);
@@ -1057,15 +1076,15 @@ void TCube::ArrangeWhiteCross(void)
     }
 
     // SD_LEFT
-    if (m_pPieces[0][0][cube_mid_pos]->m_nSideColor[SD_LEFT] == WHITE) {  //dol
+    if (m_pPieces[0][0][cube_mid_pos]->m_nSideColor[SD_LEFT] == WHITE) {                        // bottom
         moves.append(ROT_L); moves.append(ROT_B); moves.append(ROT_D); moves.append(ROT_BCCW);
         return;
     }
-    if (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT] == WHITE) { // gora
+    if (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT] == WHITE) {              // up
         moves.append(ROT_L); moves.append(ROT_FCCW); moves.append(ROT_D); moves.append(ROT_F);
         return;
     }
-    if (m_pPieces[0][cube_mid_pos][cube_size-1]->m_nSideColor[SD_LEFT] == WHITE) {  //prawo
+    if (m_pPieces[0][cube_mid_pos][cube_size-1]->m_nSideColor[SD_LEFT] == WHITE) {              // right
         color = m_pPieces[0][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT];
         if (color == m_pPieces[cube_mid_pos][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT]) {
             moves.append(ROT_F);
@@ -1077,7 +1096,7 @@ void TCube::ArrangeWhiteCross(void)
         }
         return;
     }
-    if (m_pPieces[0][cube_mid_pos][0]->m_nSideColor[SD_LEFT] == WHITE) { // lewo
+    if (m_pPieces[0][cube_mid_pos][0]->m_nSideColor[SD_LEFT] == WHITE) {                        // left
         color = m_pPieces[0][cube_mid_pos][0]->m_nSideColor[SD_BACK];
         if (color == m_pPieces[cube_mid_pos][cube_mid_pos][0]->m_nSideColor[SD_BACK]) {
             moves.append(ROT_BCCW);
@@ -1091,15 +1110,15 @@ void TCube::ArrangeWhiteCross(void)
     }
 
     // SD_FRONT
-    if (m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {  //dol
+    if (m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {             // bottom
         moves.append(ROT_F); moves.append(ROT_L); moves.append(ROT_D); moves.append(ROT_LCCW);
         return;
     }
-    if (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) { // gora
+    if (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {   // up
         moves.append(ROT_F); moves.append(ROT_RCCW); moves.append(ROT_D); moves.append(ROT_R);
         return;
     }
-    if (m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {  //prawo
+    if (m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {   // right
         color = m_pPieces[cube_size-1][cube_mid_pos][cube_size-1]->m_nSideColor[SD_RIGHT];
         if (color == m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT]) {
             moves.append(ROT_R);
@@ -1111,7 +1130,7 @@ void TCube::ArrangeWhiteCross(void)
         }
         return;
     }
-    if (m_pPieces[0][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) { // lewo
+    if (m_pPieces[0][cube_mid_pos][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {             // left
         color = m_pPieces[0][cube_mid_pos][cube_size-1]->m_nSideColor[SD_LEFT];
         if (color == m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT]) {
             moves.append(ROT_LCCW);
@@ -1125,15 +1144,15 @@ void TCube::ArrangeWhiteCross(void)
     }
 
     // SD_BACK
-    if (m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BACK] == WHITE) {  //dol
+    if (m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BACK] == WHITE) {                        // bottom
         moves.append(ROT_B); moves.append(ROT_R); moves.append(ROT_D); moves.append(ROT_RCCW);
         return;
     }
-    if (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK] == WHITE) { // gora
+    if (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK] == WHITE) {              // up
         moves.append(ROT_B); moves.append(ROT_LCCW); moves.append(ROT_D); moves.append(ROT_L);
         return;
     }
-    if (m_pPieces[0][cube_mid_pos][0]->m_nSideColor[SD_BACK] == WHITE) {  //prawo
+    if (m_pPieces[0][cube_mid_pos][0]->m_nSideColor[SD_BACK] == WHITE) {                        // right
         color = m_pPieces[0][cube_mid_pos][0]->m_nSideColor[SD_LEFT];
         if (color == m_pPieces[0][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_LEFT]) {
             moves.append(ROT_L);
@@ -1145,7 +1164,7 @@ void TCube::ArrangeWhiteCross(void)
         }
         return;
     }
-    if (m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_BACK] == WHITE) { // lewo
+    if (m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_BACK] == WHITE) {              // left
         color = m_pPieces[cube_size-1][cube_mid_pos][0]->m_nSideColor[SD_RIGHT];
         if (color == m_pPieces[cube_size-1][cube_mid_pos][cube_mid_pos]->m_nSideColor[SD_RIGHT]) {
             moves.append(ROT_RCCW);
@@ -1161,7 +1180,7 @@ void TCube::ArrangeWhiteCross(void)
 }
 
 //---------------------------------------------------------------------------
-void TCube::ArrangeWhiteCrossCorners(void)
+void TCube::arrangeWhiteCrossCorners(void)
 {
     SIDECOLOR color;
     bool RotDownSide = false;
@@ -1183,7 +1202,7 @@ void TCube::ArrangeWhiteCrossCorners(void)
         moves.append(ROT_R); moves.append(ROT_D); moves.append(ROT_RCCW);
         return;
     }
-    if (m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_RIGHT] == WHITE) {  //BR
+    if (m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_RIGHT] == WHITE) {                            // BR
         color = m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_BACK];
         if (color == (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK])) {
             moves.append(ROT_DCCW); moves.append(ROT_BCCW); moves.append(ROT_D); moves.append(ROT_B);
@@ -1193,7 +1212,7 @@ void TCube::ArrangeWhiteCrossCorners(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_RIGHT] == WHITE) { // BL
+    if (m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_RIGHT] == WHITE) {                  // BL
         color = m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_FRONT];
         if (color == (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT])) {
             moves.append(ROT_D); moves.append(ROT_F); moves.append(ROT_DCCW); moves.append(ROT_FCCW);
@@ -1208,18 +1227,18 @@ void TCube::ArrangeWhiteCrossCorners(void)
     color = m_pPieces[0][cube_size-1][0]->m_nSideColor[SD_LEFT];
     if ((color == WHITE) ||
         ((m_pPieces[0][cube_size-1][0]->m_nSideColor[SD_TOP] == WHITE) &&
-         (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT] != color)))  {  //TL
+         (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT] != color)))  {             // TL
         moves.append(ROT_LCCW); moves.append(ROT_DCCW); moves.append(ROT_L);
         return;
     }
     color = m_pPieces[0][cube_size-1][cube_size-1]->m_nSideColor[SD_LEFT];
     if ((color == WHITE) ||
         ((m_pPieces[0][cube_size-1][cube_size-1]->m_nSideColor[SD_TOP] == WHITE) &&
-         (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT] != color)))  {  //TR
+         (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT] != color)))  {             // TR
         moves.append(ROT_L); moves.append(ROT_D); moves.append(ROT_LCCW);
         return;
     }
-    if (m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_LEFT] == WHITE) {  //BR
+    if (m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_LEFT] == WHITE) {                             // BR
         color = m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_FRONT];
         if (color == (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT])) {
             moves.append(ROT_DCCW); moves.append(ROT_FCCW); moves.append(ROT_D); moves.append(ROT_F);
@@ -1229,7 +1248,7 @@ void TCube::ArrangeWhiteCrossCorners(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[0][0][0]->m_nSideColor[SD_LEFT] == WHITE) { // BL
+    if (m_pPieces[0][0][0]->m_nSideColor[SD_LEFT] == WHITE) {                                       // BL
         color = m_pPieces[0][0][0]->m_nSideColor[SD_BACK];
         if (color == (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK])) {
             moves.append(ROT_D); moves.append(ROT_B); moves.append(ROT_DCCW); moves.append(ROT_BCCW);
@@ -1244,18 +1263,18 @@ void TCube::ArrangeWhiteCrossCorners(void)
     color = m_pPieces[0][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT];
     if ((color == WHITE) ||
         ((m_pPieces[0][cube_size-1][cube_size-1]->m_nSideColor[SD_TOP] == WHITE) &&
-         (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT] != color)))  {  //TL
+         (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT] != color)))  {  // TL
         moves.append(ROT_FCCW); moves.append(ROT_DCCW); moves.append(ROT_F);
         return;
     }
     color = m_pPieces[cube_size-1][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT];
     if ((color == WHITE) ||
         ((m_pPieces[cube_size-1][cube_size-1][cube_size-1]->m_nSideColor[SD_TOP] == WHITE) &&
-         (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT] != color)))  {  //TR
+         (m_pPieces[cube_mid_pos][cube_size-1][cube_size-1]->m_nSideColor[SD_FRONT] != color)))  {  // TR
         moves.append(ROT_F); moves.append(ROT_D); moves.append(ROT_FCCW);
         return;
     }
-    if (m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {  //BR
+    if (m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {                  // BR
         color = m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_RIGHT];
         if (color == (m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_RIGHT])) {
             moves.append(ROT_DCCW); moves.append(ROT_RCCW); moves.append(ROT_D); moves.append(ROT_R);
@@ -1265,7 +1284,7 @@ void TCube::ArrangeWhiteCrossCorners(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) { // BL
+    if (m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_FRONT] == WHITE) {                            // BL
         color = m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_LEFT];
         if (color == (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT])) {
             moves.append(ROT_D); moves.append(ROT_L); moves.append(ROT_DCCW); moves.append(ROT_LCCW);
@@ -1280,18 +1299,18 @@ void TCube::ArrangeWhiteCrossCorners(void)
     color = m_pPieces[cube_size-1][cube_size-1][0]->m_nSideColor[SD_BACK];
     if ((color == WHITE) ||
         ((m_pPieces[cube_size-1][cube_size-1][0]->m_nSideColor[SD_TOP] == WHITE) &&
-         (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK] != color)))  {  //TL
+         (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK] != color)))  {             // TL
         moves.append(ROT_BCCW); moves.append(ROT_DCCW); moves.append(ROT_B);
         return;
     }
     color = m_pPieces[0][cube_size-1][0]->m_nSideColor[SD_BACK];
     if ((color == WHITE) ||
         ((m_pPieces[0][cube_size-1][0]->m_nSideColor[SD_TOP] == WHITE) &&
-         (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK] != color)))  {  //TR
+         (m_pPieces[cube_mid_pos][cube_size-1][0]->m_nSideColor[SD_BACK] != color)))  {             // TR
         moves.append(ROT_B); moves.append(ROT_D); moves.append(ROT_BCCW);
         return;
     }
-    if (m_pPieces[0][0][0]->m_nSideColor[SD_BACK] == WHITE) {  //BR
+    if (m_pPieces[0][0][0]->m_nSideColor[SD_BACK] == WHITE) {                                       // BR
         color = m_pPieces[0][0][0]->m_nSideColor[SD_LEFT];
         if (color == (m_pPieces[0][cube_size-1][cube_mid_pos]->m_nSideColor[SD_LEFT])) {
             moves.append(ROT_DCCW); moves.append(ROT_LCCW); moves.append(ROT_D); moves.append(ROT_L);
@@ -1301,7 +1320,7 @@ void TCube::ArrangeWhiteCrossCorners(void)
             RotDownSide = true;
         }
     }
-    if (m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_BACK] == WHITE) { // BL
+    if (m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_BACK] == WHITE) {                             // BL
         color = m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_RIGHT];
         if (color == (m_pPieces[cube_size-1][cube_size-1][cube_mid_pos]->m_nSideColor[SD_RIGHT])) {
             moves.append(ROT_D); moves.append(ROT_R); moves.append(ROT_DCCW); moves.append(ROT_RCCW);
@@ -1318,26 +1337,26 @@ void TCube::ArrangeWhiteCrossCorners(void)
     }
 
     // SD_BOTTOM
-    if (m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_BOTTOM] == WHITE) {  //TL
+    if (m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_BOTTOM] == WHITE) {                           // TL
         moves.append(ROT_FCCW); moves.append(ROT_D); moves.append(ROT_F);
         return;
     }
-    if (m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_BOTTOM] == WHITE) { // TR
+    if (m_pPieces[cube_size-1][0][cube_size-1]->m_nSideColor[SD_BOTTOM] == WHITE) {                 // TR
         moves.append(ROT_F); moves.append(ROT_DCCW); moves.append(ROT_FCCW);
         return;
     }
-    if (m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_BOTTOM] == WHITE) {  //BR
+    if (m_pPieces[cube_size-1][0][0]->m_nSideColor[SD_BOTTOM] == WHITE) {                           // BR
         moves.append(ROT_R); moves.append(ROT_D); moves.append(ROT_RCCW);
         return;
     }
-    if (m_pPieces[0][0][0]->m_nSideColor[SD_BOTTOM] == WHITE) { // BL
+    if (m_pPieces[0][0][0]->m_nSideColor[SD_BOTTOM] == WHITE) {                                     // BL
         moves.append(ROT_LCCW); moves.append(ROT_DCCW); moves.append(ROT_L);
         return;
     }
 }
 
 //---------------------------------------------------------------------------
-void TCube::ArrangeSecondLayer(void)
+void TCube::arrangeSecondLayer(void)
 {
     SIDECOLOR color;
     SIDECOLOR color2;
@@ -1527,7 +1546,7 @@ void TCube::ArrangeSecondLayer(void)
 }
 
 //---------------------------------------------------------------------------
-void TCube::ArrangeBlueCross(void)
+void TCube::arrangeBlueCross(void)
 {
     if ((BLUE != m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BOTTOM]) &&
         (BLUE != m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_BOTTOM]) &&
@@ -1601,7 +1620,7 @@ void TCube::ArrangeBlueCross(void)
 }
 
 //---------------------------------------------------------------------------
-void TCube::ArrangeEdgePermutationOfBlueCross(void)
+void TCube::arrangeEdgePermutationOfBlueCross(void)
 {
     int cnt = 0;
 
@@ -1672,7 +1691,7 @@ void TCube::ArrangeEdgePermutationOfBlueCross(void)
 }
 
 //---------------------------------------------------------------------------
-void TCube::PermutationOfBlueCorners(void)
+void TCube::permutationOfBlueCorners(void)
 {
     SIDECOLOR color1, color2, color3;
     SIDECOLOR colorBottom, colorLeft, colorBack, colorRight, colorFront;
@@ -1736,15 +1755,13 @@ void TCube::PermutationOfBlueCorners(void)
 }
 
 //---------------------------------------------------------------------------
-void TCube::OrientationOfBlueCorners(void)
+void TCube::orientationOfBlueCorners(void)
 {
     SIDECOLOR color1, color2, color3;
-    SIDECOLOR colorBottom, colorLeft, colorBack, colorRight, colorFront;
+    SIDECOLOR colorBottom, colorLeft, colorFront;
 
     colorBottom = BLUE;
     colorLeft   = m_pPieces[0][0][cube_mid_pos]->m_nSideColor[SD_LEFT];
-    colorBack   = m_pPieces[cube_mid_pos][0][0]->m_nSideColor[SD_BACK];
-    colorRight  = m_pPieces[cube_size-1][0][cube_mid_pos]->m_nSideColor[SD_RIGHT];
     colorFront  = m_pPieces[cube_mid_pos][0][cube_size-1]->m_nSideColor[SD_FRONT];
 
     color1 = m_pPieces[0][0][cube_size-1]->m_nSideColor[SD_BOTTOM];
@@ -1762,7 +1779,7 @@ void TCube::OrientationOfBlueCorners(void)
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-bool TCube::Solve(void)
+bool TCube::solve(void)
 {
     if (moves.length()) {
         switch (moves.at(0)) {
@@ -1785,45 +1802,45 @@ bool TCube::Solve(void)
     }
 
     if (blueEdgeOrientation) {
-        OrientationOfBlueCorners();
-        return Check();
+        orientationOfBlueCorners();
+        return check();
     }
 
-    SIDE whiteCrossSide = FindWhiteCrossSide();
+    SIDE whiteCrossSide = findWhiteCrossSide();
 
-    if (!CheckWhiteCross(whiteCrossSide)) {
+    if (!checkWhiteCross(whiteCrossSide)) {
         widget->setSolvingInterval(10);
-        if (whiteCrossSide != SD_TOP) WhiteCrossSideToTop(whiteCrossSide);
-        else ArrangeWhiteCross();
+        if (whiteCrossSide != SD_TOP) whiteCrossSideToTop(whiteCrossSide);
+        else arrangeWhiteCross();
     }
     else {
-        if (!CheckWhiteCrossCorners(whiteCrossSide)) {
+        if (!checkWhiteCrossCorners(whiteCrossSide)) {
             widget->setSolvingInterval(10);
-            ArrangeWhiteCrossCorners();
+            arrangeWhiteCrossCorners();
         }
         else {
-            if (!CheckSecondLayer(whiteCrossSide)) {
+            if (!checkSecondLayer(whiteCrossSide)) {
                 widget->setSolvingInterval(10);
-                ArrangeSecondLayer();
+                arrangeSecondLayer();
             }
             else {
-                if (!CheckBlueCross(whiteCrossSide)) {
-                    ArrangeBlueCross();
+                if (!checkBlueCross(whiteCrossSide)) {
+                    arrangeBlueCross();
                 }
                 else {
-                    if (!CheckEdgePermutationOfBlueCross(whiteCrossSide)) {
-                        ArrangeEdgePermutationOfBlueCross();
+                    if (!checkEdgePermutationOfBlueCross(whiteCrossSide)) {
+                        arrangeEdgePermutationOfBlueCross();
                     }
                     else {
-                        if (!CheckPermutationOfBlueCorners(whiteCrossSide)) {
+                        if (!checkPermutationOfBlueCorners(whiteCrossSide)) {
                             widget->setSolvingInterval(500);
-                            PermutationOfBlueCorners();
+                            permutationOfBlueCorners();
                         }
                         else {
-                            if (!CheckOrientationOfBlueCorners(whiteCrossSide)) {
+                            if (!checkOrientationOfBlueCorners(whiteCrossSide)) {
                                 widget->setSolvingInterval(500);
                                 blueEdgeOrientation = true;
-                                OrientationOfBlueCorners();
+                                orientationOfBlueCorners();
                             }
                         }
                     }
@@ -1833,6 +1850,6 @@ bool TCube::Solve(void)
 
     }
 
-    return Check();
+    return check();
 }
 //---------------------------------------------------------------------------

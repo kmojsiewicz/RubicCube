@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>rubik</string>
+   <string>Rubik's cube</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout">
@@ -43,7 +43,7 @@
     <item row="0" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="title">
-       <string>GroupBox</string>
+       <string/>
       </property>
      </widget>
     </item>

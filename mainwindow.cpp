@@ -2,6 +2,7 @@
 #include "oglwidget.h"
 #include "ui_mainwindow.h"
 
+//---------------------------------------------------------------------------
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -20,7 +21,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->pushButtonSolve, SIGNAL(clicked()), Widget, SLOT(on_pushButtonSolve_clicked()));
 }
 
+//---------------------------------------------------------------------------
 MainWindow::~MainWindow()
 {
     delete ui;
 }
+//---------------------------------------------------------------------------

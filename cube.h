@@ -11,33 +11,33 @@
 #define ELEMENTS_OF(array)       (sizeof(array)/sizeof(array[0]))
 #define MAKECOLOR(nColor)        m_rgb[nColor].r, m_rgb[nColor].g, m_rgb[nColor].b
 
-#define RotateR()                RotateXSection(cube_size-1, FALSE, TRUE)
-#define RotateRCCW()             RotateXSection(cube_size-1, TRUE, TRUE)
-#define RotateL()                RotateXSection(0, TRUE, TRUE)
-#define RotateLCCW()             RotateXSection(0, FALSE, TRUE)
-#define RotateF()                RotateZSection(cube_size-1, FALSE, TRUE)
-#define RotateFCCW()             RotateZSection(cube_size-1, TRUE, TRUE)
-#define RotateB()                RotateZSection(0, TRUE, TRUE)
-#define RotateBCCW()             RotateZSection(0, FALSE, TRUE)
-#define RotateD()                RotateYSection(0, TRUE, TRUE)
-#define RotateDCCW()             RotateYSection(0, FALSE, TRUE)
-#define RotateU()                RotateYSection(cube_size-1, FALSE, TRUE)
-#define RotateUCCW()             RotateYSection(cube_size-1, TRUE, TRUE)
+#define RotateR()                rotateXSection(cube_size-1, FALSE, TRUE)
+#define RotateRCCW()             rotateXSection(cube_size-1, TRUE, TRUE)
+#define RotateL()                rotateXSection(0, TRUE, TRUE)
+#define RotateLCCW()             rotateXSection(0, FALSE, TRUE)
+#define RotateF()                rotateZSection(cube_size-1, FALSE, TRUE)
+#define RotateFCCW()             rotateZSection(cube_size-1, TRUE, TRUE)
+#define RotateB()                rotateZSection(0, TRUE, TRUE)
+#define RotateBCCW()             rotateZSection(0, FALSE, TRUE)
+#define RotateD()                rotateYSection(0, TRUE, TRUE)
+#define RotateDCCW()             rotateYSection(0, FALSE, TRUE)
+#define RotateU()                rotateYSection(cube_size-1, FALSE, TRUE)
+#define RotateUCCW()             rotateYSection(cube_size-1, TRUE, TRUE)
 
 
 class OGLWidget;
 
-const struct {                                                                  //kominacja RGB dla uzyskania koloru kazdej ze stron kostki
+const struct {                                                                  // RGB combination to obtain the color of each side of the cube
     unsigned char r, g, b;
     } m_rgb[] = {
-        {255,  0,  0,  },                                                       //Red
-        {  0, 255,   0,},                                                       //Green
-        {  0,   0, 255,},                                                       //Blue
-        {255,   0, 255,},                                                       //Purple
-        {255, 127,   0,},                                                       //Orange
-        {255, 255,   0,},                                                       //Yellow
-        {  0,   0,   0,},                                                       //Black
-        {255, 255, 255,},                                                       //White
+        {255,  0,  0,  },                                                       // Red
+        {  0, 255,   0,},                                                       // Green
+        {  0,   0, 255,},                                                       // Blue
+        {255,   0, 255,},                                                       // Purple
+        {255, 127,   0,},                                                       // Orange
+        {255, 255,   0,},                                                       // Yellow
+        {  0,   0,   0,},                                                       // Black
+        {255, 255, 255,},                                                       // White
     };
 
 typedef enum {
@@ -106,12 +106,12 @@ protected:
 public:
     SIDECOLOR m_nSideColor[6];
     TCubePiece(BYTEVEC posHome);
-    void SetRotation(float fAngle, QVector3D vRotation) { m_fRotationAngle=fAngle; m_vRotation=vRotation; };
-    void ClrRotation(void)                              { m_fRotationAngle=0; };
-    void RotateX(bool bCW);
-    void RotateY(bool bCW);
-    void RotateZ(bool bCW);
-    void Draw(float x,float y,float z);
+    void setRotation(float fAngle, QVector3D vRotation) { m_fRotationAngle=fAngle; m_vRotation=vRotation; };
+    void clrRotation(void)                              { m_fRotationAngle=0; };
+    void rotateX(bool bCW);
+    void rotateY(bool bCW);
+    void rotateZ(bool bCW);
+    void draw(float x,float y,float z);
 };
 
 class TCube {
@@ -126,33 +126,33 @@ public:
     TCube(OGLWidget *widget);
     ~TCube();
     TCubePiece* m_pPieces[cube_size][cube_size][cube_size];
-    void Reset(void);
-    void Random(void);
-    bool Rotate(GLdouble* mxProjection, GLdouble* mxModel, GLint* nViewPort,
+    void reset(void);
+    void random(void);
+    bool rotate(GLdouble* mxProjection, GLdouble* mxModel, GLint* nViewPort,
                 int wndSizeX, int wndSizeY, int ptMouseWndX, int ptMouseWndY, int ptLastMouseWndX, int ptLastMouseWndY, OGLWidget *widget);
-    void RotateXSection(UINT8 nSection, BOOL bCW, BOOL bAnimate);
-    void RotateYSection(UINT8 nSection, BOOL bCW, BOOL bAnimate);
-    void RotateZSection(UINT8 nSection, BOOL bCW, BOOL bAnimate);
-    void AnimateRotation(TCubePiece* piece[], int ctPieces, QVector3D v, float fAngle);
-    void Draw(void);
-    bool Check(void);
-    SIDE FindWhiteCrossSide(void);
-    bool CheckWhiteCross(SIDE whiteCrossSide);
-    bool CheckWhiteCrossCorners(SIDE whiteCrossSide);
-    bool CheckSecondLayer(SIDE whiteCrossSide);
-    bool CheckBlueCross(SIDE whiteCrossSide);
-    bool CheckEdgePermutationOfBlueCross(SIDE whiteCrossSide);
-    bool CheckPermutationOfBlueCorners(SIDE whiteCrossSide);
-    bool CheckOrientationOfBlueCorners(SIDE whiteCrossSide);
-    void WhiteCrossSideToTop(SIDE whiteCrossSide);
-    void ArrangeWhiteCross(void);
-    void ArrangeWhiteCrossCorners(void);
-    void ArrangeSecondLayer(void);
-    void ArrangeBlueCross(void);
-    void ArrangeEdgePermutationOfBlueCross(void);
-    void PermutationOfBlueCorners(void);
-    void OrientationOfBlueCorners(void);
-    bool Solve(void);
+    void rotateXSection(UINT8 nSection, BOOL bCW, BOOL bAnimate);
+    void rotateYSection(UINT8 nSection, BOOL bCW, BOOL bAnimate);
+    void rotateZSection(UINT8 nSection, BOOL bCW, BOOL bAnimate);
+    void animateRotation(TCubePiece* piece[], int ctPieces, QVector3D v, float fAngle);
+    void draw(void);
+    bool check(void);
+    SIDE findWhiteCrossSide(void);
+    bool checkWhiteCross(SIDE whiteCrossSide);
+    bool checkWhiteCrossCorners(SIDE whiteCrossSide);
+    bool checkSecondLayer(SIDE whiteCrossSide);
+    bool checkBlueCross(SIDE whiteCrossSide);
+    bool checkEdgePermutationOfBlueCross(SIDE whiteCrossSide);
+    bool checkPermutationOfBlueCorners(SIDE whiteCrossSide);
+    bool checkOrientationOfBlueCorners(SIDE whiteCrossSide);
+    void whiteCrossSideToTop(SIDE whiteCrossSide);
+    void arrangeWhiteCross(void);
+    void arrangeWhiteCrossCorners(void);
+    void arrangeSecondLayer(void);
+    void arrangeBlueCross(void);
+    void arrangeEdgePermutationOfBlueCross(void);
+    void permutationOfBlueCorners(void);
+    void orientationOfBlueCorners(void);
+    bool solve(void);
 };
 
 #endif // CUBE_H
